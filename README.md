@@ -1,4 +1,4 @@
-# Backend — GM Sound Manager
+# Backend — Gamemaster's Bard API
 
 Server handling user sessions, audio track selection based on zone/ambiance criteria, real-time playback synchronization, and storage of imported files.
 
