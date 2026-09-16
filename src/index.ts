@@ -25,9 +25,17 @@ await fastify.register(multipart, {
 });
 
 await fastify.register(fastifyRateLimit, {
+    global: true,
     max: 30,
     timeWindow: '1 minute',
-    keyGenerator: (request) => request.ip
+    keyGenerator: (request) => request.ip,
+    errorResponseBuilder: (request, context) => {
+        return {
+            statusCode: 429,
+            error: 'Too Many Requests',
+            message: `Rate limit exceeded. Retry in ${context.after} seconds`
+        }
+    }
 })
 
 await fastify.register(authRoutes, { prefix: "/auth" });
