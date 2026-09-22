@@ -27,6 +27,7 @@ export class DeleteUserUseCase {
         if (!user)
             throw Error("User not found");
 
+
         return await this._userRepository.remove(user);
     }
 }

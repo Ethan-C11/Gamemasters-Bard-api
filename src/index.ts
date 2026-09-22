@@ -33,7 +33,8 @@ await fastify.register(fastifyRateLimit, {
         return {
             statusCode: 429,
             error: 'Too Many Requests',
-            message: `Rate limit exceeded. Retry in ${context.after} seconds`
+            message: `Rate limit exceeded. Retry in ${context.after} seconds`,
+            trustProxy: true
         }
     }
 })
