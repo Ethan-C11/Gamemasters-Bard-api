@@ -40,3 +40,23 @@ uploads/
 
 # MinIO data
 data/
+/.env.docker
+/package-lock.json
+/%PROGRAMDATA%/npm/ts-node
+/%PROGRAMDATA%/npm/ts-node.cmd
+/%PROGRAMDATA%/npm/ts-node.ps1
+/%PROGRAMDATA%/npm/ts-node-cwd
+/%PROGRAMDATA%/npm/ts-node-cwd.cmd
+/%PROGRAMDATA%/npm/ts-node-cwd.ps1
+/%PROGRAMDATA%/npm/ts-node-esm
+/%PROGRAMDATA%/npm/ts-node-esm.cmd
+/%PROGRAMDATA%/npm/ts-node-esm.ps1
+/%PROGRAMDATA%/npm/ts-node-script
+/%PROGRAMDATA%/npm/ts-node-script.cmd
+/%PROGRAMDATA%/npm/ts-node-script.ps1
+/%PROGRAMDATA%/npm/ts-node-transpile-only
+/%PROGRAMDATA%/npm/ts-node-transpile-only.cmd
+/%PROGRAMDATA%/npm/ts-node-transpile-only.ps1
+/%PROGRAMDATA%/npm/ts-script
+/%PROGRAMDATA%/npm/ts-script.cmd
+/%PROGRAMDATA%/npm/ts-script.ps1
