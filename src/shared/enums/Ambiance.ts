@@ -2,6 +2,7 @@ export enum Ambiance {
     // Combat
     COMBAT = 'combat',               // affrontement direct
     SKIRMISH = 'skirmish',           // escarmouche, tension militaire
+    SIEGE = 'siege',                 // Siège avec bombardement, combat et civils en panique
 
     // Tension / Danger
     TENSION = 'tension',             // danger imminent
@@ -18,10 +19,10 @@ export enum Ambiance {
     CALM = 'calm',                   // repos, nature paisible
     TAVERN = 'tavern',               // social, animation douce
     CEREMONY = 'ceremony',           // rituel, solennité
-    SAD = 'sad',                     // deuil, mélancolie
 
     // Magique / Épique
     MAGICAL = 'magical',             // merveilleux, arcane
     EPIC = 'epic',                   // moment clé, révélation
     TRIUMPH = 'triumph',             // victoire, accomplissement
+    LAST_STAND = 'last_stand',       // dernier recours, épique, sacrifice...
 }
