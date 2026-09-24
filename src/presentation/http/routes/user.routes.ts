@@ -10,7 +10,7 @@ import { FastifyPluginAsyncTypebox } from "@fastify/type-provider-typebox";
 export const userRoutes: FastifyPluginAsyncTypebox = async (app) => {
 
     app.put("/", {
-        preHandler: [authenticate, authorize(Role.USER, Role.ADMIN)],
+        preHandler: [authenticate, authorize(Role.USER, Role.ADMIN, Role.SOUND_CREATOR)],
         schema: {
             tags: ["User"],
             summary: "Edit the user account",
@@ -35,7 +35,7 @@ export const userRoutes: FastifyPluginAsyncTypebox = async (app) => {
     });
 
     app.delete("/", {
-        preHandler: [authenticate, authorize(Role.USER, Role.ADMIN)],
+        preHandler: [authenticate, authorize(Role.USER, Role.ADMIN, Role.SOUND_CREATOR)],
         schema: {
             tags: ["User"],
             summary: "Delete the user account",
