@@ -51,15 +51,19 @@ export class CreateUserWithRoleUseCase {
             throw Error("Token has not match");
 
         const newUser : User = this._userRepository.create({
-            email: email,
-            username: username,
+            email: email.trim(),
+            username: username.trim(),
             role : role,
             hashedPassword: null,
         })
 
-
         const rawToken = crypto.randomBytes(32).toString("hex");
         const tokenHash = TokenHasher.hashToken(rawToken);
+        console.log(rawToken)
+
+        await SendActivationEmailUseCase.getInstance().execute(email, rawToken)
+
+        await this._userRepository.save(newUser);
 
         const token = this._tokenRepository.create({
             user: newUser,
@@ -69,9 +73,6 @@ export class CreateUserWithRoleUseCase {
             expiresAt: new Date(Date.now() + TOKEN_TTL_HOURS * 60 * 60 * 1000)
         });
 
-        await SendActivationEmailUseCase.getInstance().execute(email, rawToken)
-
-        await this._userRepository.save(newUser);
         await this._tokenRepository.save(token);
 
         return newUser;
