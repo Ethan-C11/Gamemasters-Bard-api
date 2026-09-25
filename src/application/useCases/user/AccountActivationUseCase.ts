@@ -45,6 +45,7 @@ export class AccountActivationUseCase {
 
         user.hashedPassword = passwordHash;
         user.userStatus = UserStatus.ACTIVE;
+        user.lastConnection = new Date();
 
         await this._userRepository.save(user)
 
