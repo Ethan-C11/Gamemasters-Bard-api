@@ -26,7 +26,7 @@ export class SignInUseCase {
         if(!user)
             throw Error("No account with this email exist");
 
-        if(!user.isActive || user.hashedPassword === undefined)
+        if(user.hashedPassword === null)
             throw Error("User is not active");
 
         const passwordCheck = await PasswordHasher.verify(user.hashedPassword, plainPassword)
