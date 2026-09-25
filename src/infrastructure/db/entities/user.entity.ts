@@ -2,6 +2,8 @@ import {Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, OneToMany, Man
 import {Session} from "./session.entity.js";
 import {AudioTrack} from "./audioTrack.entity.js";
 import {Role} from "../../../shared/enums/Role.js";
+import {ActivationToken} from "./activationToken.entity.js";
+import {UserStatus} from "../../../shared/enums/UserStatus.js";
 
 @Entity()
 export class User {
@@ -9,10 +11,10 @@ export class User {
     id: number;
     @Column()
     username: string;
-    @Column()
+    @Column({unique: true})
     email: string;
-    @Column()
-    hashedPassword: string;
+    @Column({type: "varchar", nullable: true})
+    hashedPassword: string | null;
     @CreateDateColumn()
     createdAt: Date;
     @OneToMany(() => Session, (sessionEntity) => sessionEntity.owner)
@@ -27,4 +29,9 @@ export class User {
         default: Role.USER,
     })
     role: Role;
+
+    @OneToMany(() => ActivationToken, (token) => token.user)
+    activationTokens: Relation<ActivationToken[]>;
+    @Column({ type: 'enum', enum: UserStatus, default: UserStatus.PENDING_ACTIVATION })
+    userStatus: UserStatus;
 }

@@ -20,7 +20,7 @@ import FetchSoundsUseCase from "../../../application/useCases/audio/FetchSoundsU
 export async function audioRoutes(app: FastifyInstance) {
 
     app.post("/upload", {
-        preHandler: [authenticate, authorize(Role.USER, Role.ADMIN)],
+        preHandler: [authenticate, authorize(Role.USER, Role.ADMIN, Role.SOUND_CREATOR)],
         schema: {
             tags: ["Soundtrack"],
             summary: "Upload a sound for every user",
@@ -50,7 +50,7 @@ export async function audioRoutes(app: FastifyInstance) {
     });
 
     app.post("/resolve", {
-        preHandler: [authenticate, authorize(Role.USER, Role.ADMIN)],
+        preHandler: [authenticate, authorize(Role.USER, Role.ADMIN, Role.SOUND_CREATOR)],
         schema: {
             tags: ["Soundtrack"],
             summary: "Randomly select a sound for a specific session",
@@ -79,7 +79,7 @@ export async function audioRoutes(app: FastifyInstance) {
     });
 
     app.post("/list", {
-        preHandler: [authenticate, authorize(Role.USER, Role.ADMIN)],
+        preHandler: [authenticate, authorize(Role.USER, Role.ADMIN, Role.SOUND_CREATOR)],
         schema: {
             tags: ["Soundtrack"],
             summary: "Get a paginated list of audio tracks based on filters",

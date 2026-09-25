@@ -21,3 +21,17 @@ export const AuthResponse = Type.Object({
         username: Type.String(),
     }),
 });
+
+export const ActivateBody = Type.Object({
+    token: Type.String(),
+    password: Type.String({minLength: 12}),
+});
+export type ActivateBody = Static<typeof ActivateBody>;
+
+export const ActivateResponse = Type.Object({
+    user: Type.Object({
+        id: Type.Number(),
+        email: Type.String(),
+        username: Type.String(),
+    }),
+});
