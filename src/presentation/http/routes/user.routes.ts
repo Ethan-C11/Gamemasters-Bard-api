@@ -1,11 +1,17 @@
 import {ErrorResponse} from "../../../application/dtos/shared.schema.js";
-import {EditUserBody, UserDeleteParams, UserResponse} from "../../../application/dtos/user.schema.js";
+import {
+    AdminUserCreateBody,
+    EditUserBody,
+    UserDeleteParams,
+    UserResponse
+} from "../../../application/dtos/user.schema.js";
 import {EditUserUseCase} from "../../../application/useCases/user/EditUserUseCase.js";
 import {authenticate} from "../hooks/authenticate.js";
 import {authorize} from "../hooks/authorize.js";
 import {Role} from "../../../shared/enums/Role.js";
 import {DeleteUserUseCase} from "../../../application/useCases/user/DeleteUserUseCase.js";
 import { FastifyPluginAsyncTypebox } from "@fastify/type-provider-typebox";
+import {CreateUserWithRoleUseCase} from "../../../application/useCases/user/CreateUserWithRoleUseCase.js";
 
 export const userRoutes: FastifyPluginAsyncTypebox = async (app) => {
 
@@ -73,6 +79,29 @@ export const userRoutes: FastifyPluginAsyncTypebox = async (app) => {
             const user = await DeleteUserUseCase.getInstance().execute(request.params.id);
 
 
+            return reply.status(200).send({ user: { id: user.id, email: user.email, username: user.username } });
+        } catch (err) {
+            return reply.status(400).send({ error: (err as Error).message });
+        }
+    });
+
+    app.post('/admin/create-user', {
+        preHandler: [authenticate, authorize(Role.ADMIN)],
+        schema: {
+            tags: ["User"],
+            summary: "(ADMIN) Create a special role user account",
+            security: [{ bearerAuth: [] }],
+            body: AdminUserCreateBody,
+            response: {
+                200: UserResponse,
+                400: ErrorResponse,
+            },
+
+        }
+    }, async (request, reply) => {
+        try {
+            const { email, username, role, adminToken } = request.body as { email: string; username: string, role:Role, adminToken:string };
+            const user = await CreateUserWithRoleUseCase.getInstance().execute(email, username, role, adminToken);
             return reply.status(200).send({ user: { id: user.id, email: user.email, username: user.username } });
         } catch (err) {
             return reply.status(400).send({ error: (err as Error).message });

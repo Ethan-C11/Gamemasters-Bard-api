@@ -2,8 +2,16 @@
 import { JwtPayload } from "../../../shared/types/jwt-payload.js";
 import {SignUpUseCase} from "../../../application/useCases/auth/SignUpUseCase.js";
 import {SignInUseCase} from "../../../application/useCases/auth/SignInUseCase.js";
-    import {AuthResponse, SignInBody, SignUpBody} from "../../../application/dtos/auth.schema.js";
+    import {
+    ActivateBody,
+    ActivateResponse,
+    AuthResponse,
+    SignInBody,
+    SignUpBody
+} from "../../../application/dtos/auth.schema.js";
     import {ErrorResponse} from "../../../application/dtos/shared.schema.js";
+    import {AccountActivationUseCase} from "../../../application/useCases/user/AccountActivationUseCase.js";
+    import {User} from "../../../infrastructure/db/entities/user.entity.js";
 
 export async function authRoutes(app: FastifyInstance) {
 
@@ -23,7 +31,7 @@ export async function authRoutes(app: FastifyInstance) {
         };
 
         try {
-            const user = await SignUpUseCase.getInstance().execute(email, username, password);
+            const user: User = await SignUpUseCase.getInstance().execute(email, username, password);
 
             const payload: JwtPayload = { id: user.id, email: user.email, role: user.role };
             const token = app.jwt.sign(payload);
@@ -48,13 +56,33 @@ export async function authRoutes(app: FastifyInstance) {
         const { email, password } = request.body as { email: string; password: string };
 
         try {
-            const user = await SignInUseCase.getInstance().execute(email, password);
+            const user : User = await SignInUseCase.getInstance().execute(email, password);
 
             const payload: JwtPayload = { id: user.id, email: user.email, role: user.role };
             const token = app.jwt.sign(payload);
 
             return reply.status(200).send({ token, user: { id: user.id, email: user.email, username: user.username } });
         } catch (err) {
+            return reply.status(401).send({ error: (err as Error).message });
+        }
+    });
+
+    app.post('/activate', {
+        schema: {
+            tags: ["Auth"],
+            summary: "Activate an user",
+            body: ActivateBody,
+            response: {
+                200: ActivateResponse,
+                401: ErrorResponse,
+            },
+        }
+    }, async (request, reply) => {
+        const { token, password } = request.body as { token: string; password: string };
+        try {
+            const user: User = await AccountActivationUseCase.getInstance().execute(token, password);
+            return reply.status(200).send({ token, user: { id: user.id, email: user.email, username: user.username } });
+        } catch (err: any) {
             return reply.status(401).send({ error: (err as Error).message });
         }
     });

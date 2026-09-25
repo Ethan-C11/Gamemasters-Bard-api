@@ -18,3 +18,11 @@ export const UserResponse = Type.Object({
         username: Type.String(),
     }),
 });
+
+export const AdminUserCreateBody = Type.Object({
+    email: Type.String({ format: "email" }),
+    username: Type.String(),
+    role: Type.String(),
+    adminToken: Type.String(),
+});
+export type AdminUserCreateBody = Static<typeof AdminUserCreateBody>;
