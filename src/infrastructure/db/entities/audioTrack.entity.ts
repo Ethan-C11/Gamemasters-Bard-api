@@ -14,7 +14,7 @@ import {SoundType} from "../../../shared/enums/SoundType.js";
 
 @Entity()
 export class AudioTrack {
-    @PrimaryGeneratedColumn('uuid')
+    @PrimaryGeneratedColumn()
     id: number;
     @Column()
     name: string;

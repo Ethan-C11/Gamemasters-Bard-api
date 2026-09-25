@@ -7,7 +7,7 @@ import {UserStatus} from "../../../shared/enums/UserStatus.js";
 
 @Entity()
 export class User {
-    @PrimaryGeneratedColumn('uuid')
+    @PrimaryGeneratedColumn()
     id: number;
     @Column()
     username: string;

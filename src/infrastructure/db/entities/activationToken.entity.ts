@@ -12,7 +12,7 @@ import {TokenPurpose} from "../../../shared/enums/TokenPurpose.js";
 
 @Entity()
 export class ActivationToken {
-    @PrimaryGeneratedColumn('uuid')
+    @PrimaryGeneratedColumn()
     id: string;
 
     @ManyToOne(() => User, (user) => user.activationTokens, { onDelete: 'CASCADE' })
