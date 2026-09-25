@@ -7,6 +7,7 @@ import crypto from 'node:crypto';
 import {PasswordHasher} from "../../../shared/utils/PasswordHasher.js";
 import {TokenPurpose} from "../../../shared/enums/TokenPurpose.js";
 import {SendActivationEmailUseCase} from "../auth/SendActivationEmailUseCase.js";
+import {TokenHasher} from "../../../shared/utils/TokenHasher.js";
 
 export class CreateUserWithRoleUseCase {
 
@@ -59,7 +60,7 @@ export class CreateUserWithRoleUseCase {
         await this._userRepository.save(newUser);
 
         const rawToken = crypto.randomBytes(32).toString("hex");
-        const tokenHash = await PasswordHasher.hash(rawToken);
+        const tokenHash = TokenHasher.hashToken(rawToken);
 
         const token = this._tokenRepository.create({
             user: newUser,
