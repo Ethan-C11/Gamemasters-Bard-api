@@ -102,6 +102,8 @@ JWT_SECRET=
 
 ADMIN_KEY=
 SOUND_CREATOR_KEY=
+
+TOKEN_HMAC_SECRET=
 ```
 
 `MINIO_ROOT_USER` and `MINIO_ROOT_PASSWORD` are the admin credentials for the
