@@ -15,8 +15,8 @@ export class User {
     email: string;
     @Column({type: "varchar", nullable: true})
     hashedPassword: string | null;
-    @CreateDateColumn()
-    createdAt: Date;
+    @Column({ type: 'timestamptz', nullable: true })
+    lastConnection: Date | null;
     @OneToMany(() => Session, (sessionEntity) => sessionEntity.owner)
     ownedSessions: Relation<Session[]>;
     @ManyToMany(() => Session, (session) => session.sessionMembers)
@@ -34,4 +34,7 @@ export class User {
     activationTokens: Relation<ActivationToken[]>;
     @Column({ type: 'enum', enum: UserStatus, default: UserStatus.PENDING_ACTIVATION })
     userStatus: UserStatus;
+
+    @Column({type: 'boolean', default: false})
+    deletionWarningSent: boolean;
 }

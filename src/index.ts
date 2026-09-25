@@ -12,6 +12,7 @@ import {userRoutes} from "./presentation/http/routes/user.routes.js";
 import {audioRoutes} from "./presentation/http/routes/audio.routes.js";
 import {MinioStorageService} from "./infrastructure/storage/MinioStorageService.js";
 import fastifyRateLimit from "@fastify/rate-limit";
+import {registerGdprCleanupCron} from "./infrastructure/scheduler/gdprCleanup.cron.js";
 
 const fastify = Fastify({ logger: true }).withTypeProvider<TypeBoxTypeProvider>()
 await registerJwt(fastify);
@@ -61,4 +62,5 @@ const start = async () => {
     }
 }
 
-start()
+start();
+registerGdprCleanupCron();

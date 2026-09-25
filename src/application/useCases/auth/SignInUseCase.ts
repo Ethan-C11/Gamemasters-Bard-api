@@ -34,6 +34,9 @@ export class SignInUseCase {
         if(!passwordCheck)
             throw Error("Incorrect password");
 
+        user.lastConnection = new Date();
+        await this._userRepository.save(user)
+
         return user;
     }
 }
