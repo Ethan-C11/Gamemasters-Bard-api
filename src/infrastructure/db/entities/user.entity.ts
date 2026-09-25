@@ -2,17 +2,18 @@ import {Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, OneToMany, Man
 import {Session} from "./session.entity.js";
 import {AudioTrack} from "./audioTrack.entity.js";
 import {Role} from "../../../shared/enums/Role.js";
+import {ActivationToken} from "./activationToken.entity.js";
 
 @Entity()
 export class User {
-    @PrimaryGeneratedColumn()
+    @PrimaryGeneratedColumn('uuid')
     id: number;
     @Column()
     username: string;
-    @Column()
+    @Column({unique: true})
     email: string;
-    @Column()
-    hashedPassword: string | undefined;
+    @Column({type: "varchar", nullable: true})
+    hashedPassword: string | null;
     @CreateDateColumn()
     createdAt: Date;
     @OneToMany(() => Session, (sessionEntity) => sessionEntity.owner)
@@ -27,6 +28,7 @@ export class User {
         default: Role.USER,
     })
     role: Role;
-    @Column()
-    isActive: boolean;
+
+    @OneToMany(() => ActivationToken, (token) => token.user)
+    activationTokens: Relation<ActivationToken[]>;
 }
