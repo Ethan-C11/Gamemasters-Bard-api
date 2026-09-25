@@ -32,6 +32,6 @@ export class User {
 
     @OneToMany(() => ActivationToken, (token) => token.user)
     activationTokens: Relation<ActivationToken[]>;
-    @Column()
+    @Column({ type: 'enum', enum: UserStatus, default: UserStatus.PENDING_ACTIVATION })
     userStatus: UserStatus;
 }
