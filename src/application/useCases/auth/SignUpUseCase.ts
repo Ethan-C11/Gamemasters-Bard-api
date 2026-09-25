@@ -3,6 +3,7 @@ import {AppDataSource} from "../../../infrastructure/db/AppDataSource.js";
 import {Repository} from "typeorm";
 import {PasswordHasher} from "../../../shared/utils/PasswordHasher.js";
 import {Role} from "../../../shared/enums/Role.js";
+import {UserStatus} from "../../../shared/enums/UserStatus.js";
 
 export class SignUpUseCase {
 
@@ -27,10 +28,11 @@ export class SignUpUseCase {
             throw Error("Email is already used");
 
         const newUser : User = this._userRepository.create({
-            email: email,
-            username: username,
+            email: email.trim(),
+            username: username.trim(),
             hashedPassword : await PasswordHasher.hash(password),
             role : Role.USER,
+            userStatus: UserStatus.ACTIVE
         })
 
         return this._userRepository.save(newUser);

@@ -3,6 +3,7 @@ import {AppDataSource} from "../../../infrastructure/db/AppDataSource.js";
 import {Repository} from "typeorm";
 import {PasswordHasher} from "../../../shared/utils/PasswordHasher.js";
 import {Role} from "../../../shared/enums/Role.js";
+import {UserStatus} from "../../../shared/enums/UserStatus.js";
 
 export class SignInUseCase {
 
@@ -26,7 +27,7 @@ export class SignInUseCase {
         if(!user)
             throw Error("No account with this email exist");
 
-        if(user.hashedPassword === null)
+        if(user.hashedPassword === null || user.userStatus != UserStatus.ACTIVE)
             throw Error("User is not active");
 
         const passwordCheck = await PasswordHasher.verify(user.hashedPassword, plainPassword)
