@@ -3,7 +3,7 @@ import {User} from "./user.entity.js";
 
 @Entity()
 export class Session {
-    @PrimaryGeneratedColumn()
+    @PrimaryGeneratedColumn('uuid')
     id: number;
 
     @ManyToOne(() => User, (user) => user.ownedSessions)
