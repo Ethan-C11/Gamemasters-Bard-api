@@ -57,7 +57,6 @@ export class CreateUserWithRoleUseCase {
             hashedPassword: null,
         })
 
-        await this._userRepository.save(newUser);
 
         const rawToken = crypto.randomBytes(32).toString("hex");
         const tokenHash = TokenHasher.hashToken(rawToken);
@@ -70,9 +69,10 @@ export class CreateUserWithRoleUseCase {
             expiresAt: new Date(Date.now() + TOKEN_TTL_HOURS * 60 * 60 * 1000)
         });
 
-        await this._tokenRepository.save(token);
-
         await SendActivationEmailUseCase.getInstance().execute(email, rawToken)
+
+        await this._userRepository.save(newUser);
+        await this._tokenRepository.save(token);
 
         return newUser;
     }
