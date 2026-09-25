@@ -30,7 +30,8 @@ export class SignUpUseCase {
             email: email,
             username: username,
             hashedPassword : await PasswordHasher.hash(password),
-            role : Role.USER
+            role : Role.USER,
+            isActive : true
         })
 
         return this._userRepository.save(newUser);

@@ -12,7 +12,7 @@ export class User {
     @Column()
     email: string;
     @Column()
-    hashedPassword: string;
+    hashedPassword: string | undefined;
     @CreateDateColumn()
     createdAt: Date;
     @OneToMany(() => Session, (sessionEntity) => sessionEntity.owner)
@@ -27,4 +27,6 @@ export class User {
         default: Role.USER,
     })
     role: Role;
+    @Column()
+    isActive: boolean;
 }
