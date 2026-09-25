@@ -3,6 +3,7 @@ import {Session} from "./session.entity.js";
 import {AudioTrack} from "./audioTrack.entity.js";
 import {Role} from "../../../shared/enums/Role.js";
 import {ActivationToken} from "./activationToken.entity.js";
+import {UserStatus} from "../../../shared/enums/UserStatus.js";
 
 @Entity()
 export class User {
@@ -31,4 +32,6 @@ export class User {
 
     @OneToMany(() => ActivationToken, (token) => token.user)
     activationTokens: Relation<ActivationToken[]>;
+    @Column()
+    userStatus: UserStatus;
 }
