@@ -17,7 +17,8 @@ class ImportAudioUseCase {
     private _userRepository: Repository<User>;
     private _allowedExtensions = ['.mp3', '.wav', '.ogg', '.flac', '.m4a'];
 
-    private _maxMbPerUser : number = 50
+    private _maxMbPerUser : number = 100
+    private _maxMbPerFile : number = 10
 
     private constructor() {
         this._audioTrackRepository = AppDataSource.getRepository(AudioTrack);
@@ -50,6 +51,8 @@ class ImportAudioUseCase {
 
 
         const buffer = await file.toBuffer();
+        if(buffer.length / 1000000 > this._maxMbPerFile)
+            throw Error(`Maximum file size is ${this._maxMbPerFile}`);
 
         if(!isUserImported)
             userId = 0
@@ -62,7 +65,7 @@ class ImportAudioUseCase {
 
             totalUploadedFilesSize = totalUploadedFilesSize / 1000000;
             if((totalUploadedFilesSize + (buffer.length / 1000000)) > this._maxMbPerUser)
-                throw new Error("Maximum upload capacity is reached for this user")
+                throw new Error(`Maximum upload capacity of ${this._maxMbPerUser} is reached for this user`)
         }
 
         const key = `sounds/${type}/${userId}/${file.filename}`;
