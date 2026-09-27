@@ -17,8 +17,8 @@ class ImportAudioUseCase {
     private _userRepository: Repository<User>;
     private _allowedExtensions = ['.mp3', '.wav', '.ogg', '.flac', '.m4a'];
 
-    private _maxMbPerUser : number = 100
-    private _maxMbPerFile : number = 10
+    private _maxMbPerUser : number = 300
+    private _maxMbPerFile : number = 20
 
     private constructor() {
         this._audioTrackRepository = AppDataSource.getRepository(AudioTrack);
