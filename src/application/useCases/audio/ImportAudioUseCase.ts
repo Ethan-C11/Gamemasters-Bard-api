@@ -17,6 +17,7 @@ class ImportAudioUseCase {
     private _userRepository: Repository<User>;
     private _allowedExtensions = ['.mp3', '.wav', '.ogg', '.flac', '.m4a'];
 
+    private _maxMbPerUser : number = 50
 
     private constructor() {
         this._audioTrackRepository = AppDataSource.getRepository(AudioTrack);
@@ -47,11 +48,24 @@ class ImportAudioUseCase {
         if(!ambiance && !zone)
             throw Error("You need to select at least one zone or ambiance" );
 
+
+        const buffer = await file.toBuffer();
+
         if(!isUserImported)
             userId = 0
+        else
+        {
+            let totalUploadedFilesSize : number = 0;
+            const userSounds : AudioTrack[] = await this._audioTrackRepository.findBy({ uploadedBy: {id: userId}, isUserImported: true });
+            for ( const userSound of userSounds)
+                totalUploadedFilesSize += userSound.sizeInBytes;
+
+            totalUploadedFilesSize = totalUploadedFilesSize / 1000000;
+            if((totalUploadedFilesSize + (buffer.length / 1000000)) > this._maxMbPerUser)
+                throw new Error("Maximum upload capacity is reached for this user")
+        }
 
         const key = `sounds/${type}/${userId}/${file.filename}`;
-        const buffer = await file.toBuffer();
 
         await MinioStorageService.getInstance().upload(key, buffer, buffer.length, file.mimetype);
 
