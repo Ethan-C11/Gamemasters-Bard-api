@@ -10,5 +10,9 @@ export class TokenHasher {
             .update(rawToken)
             .digest('hex');
     }
+
+    static generate(): string {
+        return crypto.randomBytes(32).toString('hex');
+    }
 }
 

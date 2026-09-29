@@ -57,7 +57,7 @@ export class CreateUserWithRoleUseCase {
             hashedPassword: null,
         })
 
-        const rawToken = crypto.randomBytes(32).toString("hex");
+        const rawToken = TokenHasher.generate();
         const tokenHash = TokenHasher.hashToken(rawToken);
 
         await SendActivationEmailUseCase.getInstance().execute(email, rawToken)
