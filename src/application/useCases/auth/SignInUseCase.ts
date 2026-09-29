@@ -25,14 +25,14 @@ export class SignInUseCase {
     async execute(email: string, plainPassword: string): Promise<User> {
         const user: User | null = await this._userRepository.findOneBy({ email : email });
         if(!user)
-            throw Error("No account with this email exist");
+            throw Error("Invalid email or password");
 
         if(user.hashedPassword === null || user.userStatus != UserStatus.ACTIVE)
-            throw Error("User is not active");
+            throw Error("Invalid email or password");
 
         const passwordCheck = await PasswordHasher.verify(user.hashedPassword, plainPassword)
         if(!passwordCheck)
-            throw Error("Incorrect password");
+            throw Error("Invalid email or password");
 
         user.lastConnection = new Date();
         await this._userRepository.save(user)
