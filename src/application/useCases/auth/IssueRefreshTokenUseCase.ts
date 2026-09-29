@@ -1,4 +1,3 @@
-// application/useCases/auth/issueRefreshToken.useCase.ts
 import { Repository } from 'typeorm';
 import { AppDataSource } from '../../../infrastructure/db/AppDataSource.js';
 import { RefreshToken } from '../../../infrastructure/db/entities/refreshToken.entity.js';
