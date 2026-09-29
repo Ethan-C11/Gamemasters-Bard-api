@@ -15,6 +15,7 @@ export type SignInBody = Static<typeof SignInBody>;
 
 export const AuthResponse = Type.Object({
     token: Type.String(),
+    refreshToken: Type.String(),
     user: Type.Object({
         id: Type.Number(),
         email: Type.String(),
@@ -35,3 +36,8 @@ export const ActivateResponse = Type.Object({
         username: Type.String(),
     }),
 });
+
+export const RefreshBody = Type.Object({
+    refreshToken: Type.String(),
+});
+export type RefreshBody = Static<typeof RefreshBody>;
