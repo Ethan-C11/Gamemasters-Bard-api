@@ -2,7 +2,6 @@ import {User} from "../../../infrastructure/db/entities/user.entity.js";
 import {AppDataSource} from "../../../infrastructure/db/AppDataSource.js";
 import {Repository} from "typeorm";
 import {PasswordHasher} from "../../../shared/utils/PasswordHasher.js";
-import {Role} from "../../../shared/enums/Role.js";
 import {UserStatus} from "../../../shared/enums/UserStatus.js";
 
 export class SignInUseCase {
