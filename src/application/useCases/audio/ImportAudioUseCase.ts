@@ -15,8 +15,17 @@ class ImportAudioUseCase {
 
     private _audioTrackRepository: Repository<AudioTrack>;
     private _userRepository: Repository<User>;
-    private _allowedExtensions = ['.mp3', '.wav', '.ogg', '.flac', '.m4a'];
-
+    private _allowedMimeTypes = [
+        'audio/mpeg',    // .mp3
+        'audio/wav',     // .wav
+        'audio/x-wav',   // .wav (variante)
+        'audio/wave',    // .wav (variante)
+        'audio/ogg',     // .ogg
+        'audio/flac',    // .flac
+        'audio/x-flac',  // .flac (variante)
+        'audio/mp4',     // .m4a
+        'audio/x-m4a',   // .m4a (variante)
+    ];
     private _maxMbPerUser : number = 300
     private _maxMbPerFile : number = 20
 
@@ -32,18 +41,11 @@ class ImportAudioUseCase {
         return ImportAudioUseCase._instance;
     }
 
-    static getExtension(filename: string): string {
-        const lastDot = filename.lastIndexOf('.');
-        return lastDot === -1 ? '' : filename.slice(lastDot).toLowerCase();
-    }
-
     async execute(userId: number = 0, file : MultipartFile | undefined, name: string, type: SoundType, zone: Zone | undefined, ambiance : Ambiance | undefined, isUserImported : boolean): Promise<AudioTrackResponse> {
         if (!file)
             throw Error("No file selected" );
 
-        const extension = ImportAudioUseCase.getExtension(file.filename);
-
-        if (!this._allowedExtensions.includes(extension))
+        if (!this._allowedMimeTypes.includes(file.mimetype.toLowerCase()))
             throw Error(`File type "${file.mimetype}" is not allowed`);
 
         if(!ambiance && !zone)
