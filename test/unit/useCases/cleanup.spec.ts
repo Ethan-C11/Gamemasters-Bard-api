@@ -83,6 +83,31 @@ describe("DeleteInactiveUsersUseCase", () => {
     });
 });
 
+describe("inactivity limit configuration", () => {
+    afterEach(() => {
+        process.env.INACTIVITY_MONTH_LIMIT = "24";
+    });
+
+    it.each([
+        ["missing", undefined, 24],
+        ["empty", "", 24],
+        ["not a number", "abc", 24],
+        ["too small", "1", 24],
+        ["set to 12", "12", 12],
+    ])("uses the right limit when the variable is %s", async (_label, limit, expectedMonths) => {
+        vi.useFakeTimers();
+        vi.setSystemTime(NOW);
+        if (limit === undefined) delete process.env.INACTIVITY_MONTH_LIMIT;
+        else process.env.INACTIVITY_MONTH_LIMIT = limit;
+
+        await WarnInactiveUsersUseCase.getInstance().execute();
+        await DeleteInactiveUsersUseCase.getInstance().execute();
+
+        expect(users.find.mock.calls[0]?.[0].where.lastConnection).toEqual(LessThan(monthsBefore(expectedMonths - 1)));
+        expect(users.find.mock.calls[1]?.[0].where.lastConnection).toEqual(LessThan(monthsBefore(expectedMonths)));
+    });
+});
+
 describe("SendDeletionWarningEmailUseCase", () => {
     it("returns the same singleton instance", () => {
         expect(SendDeletionWarningEmailUseCase.getInstance()).toBe(SendDeletionWarningEmailUseCase.getInstance());
