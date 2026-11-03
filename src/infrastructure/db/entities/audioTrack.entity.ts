@@ -18,7 +18,7 @@ export class AudioTrack {
     id: number;
     @Column()
     name: string;
-    @Column()
+    @Column({ unique: true })
     storageKey: string;
     @Column()
     mimeType: string;

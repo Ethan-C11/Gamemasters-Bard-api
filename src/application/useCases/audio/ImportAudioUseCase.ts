@@ -70,7 +70,10 @@ class ImportAudioUseCase {
                 throw new Error(`Maximum upload capacity of ${this._maxMbPerUser} is reached for this user`)
         }
 
-        const key = `sounds/${type}/${userId}/${file.filename}`;
+        const key = `sounds/${userId}/${file.filename}`;
+
+        if (await this._audioTrackRepository.exists({ where: { storageKey: key } }))
+            throw Error("A file with this name has already been uploaded");
 
         await MinioStorageService.getInstance().upload(key, buffer, buffer.length, file.mimetype);
 
