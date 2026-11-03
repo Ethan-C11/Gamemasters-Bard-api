@@ -57,7 +57,7 @@ export default defineConfig({
                 test: {
                     name: "functional",
                     include: ["test/functional/**/*.spec.ts"],
-                    setupFiles: ["test/setup/functional.ts"],
+                    setupFiles: ["test/setup/unit.ts"],
                 },
             },
             {
