@@ -99,6 +99,22 @@ describe("elevated accounts", () => {
         expect((await api.post("/auth/signin", { email, password: "creatorPassword1" })).status).toBe(401);
     });
 
+    it("leaves no account behind when the activation email fails, so the admin can retry", async () => {
+        process.env.SOUND_CREATOR_KEY = await PasswordHasher.hash("creator-key");
+        const admin = await createAdmin();
+        const email = uniqueEmail("retry");
+        const payload = { email, username: "retry", role: Role.SOUND_CREATOR, adminToken: "creator-key" };
+        sendMailMock.mockRejectedValueOnce(new Error("SMTP down"));
+
+        const failed = await admin.post("/user/admin/create-user", payload);
+        expect(failed.status).toBe(400);
+        expect(await AppDataSource.getRepository(User).countBy({ email })).toBe(0);
+
+        const retried = await admin.post("/user/admin/create-user", payload);
+        expect(retried.status).toBe(200);
+        expect(sendMailMock).toHaveBeenCalledTimes(2);
+    });
+
     it("refuses a wrong role key and user accounts", async () => {
         process.env.ADMIN_KEY = await PasswordHasher.hash("admin-key");
         const admin = await createAdmin();

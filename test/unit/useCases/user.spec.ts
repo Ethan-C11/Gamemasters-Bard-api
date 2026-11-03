@@ -202,19 +202,44 @@ describe("CreateUserWithRoleUseCase", () => {
         expect(users.save).not.toHaveBeenCalled();
     });
 
-    it("refuses when the role key is not configured", async () => {
-        delete process.env.ADMIN_KEY;
+    it.each([undefined, ""])("refuses when the role key is not configured (%s)", async (key) => {
+        if (key === undefined) delete process.env.ADMIN_KEY;
+        else process.env.ADMIN_KEY = key;
 
         await expect(CreateUserWithRoleUseCase.getInstance().execute("x@gm-test.test", "x", Role.ADMIN, "admin-secret"))
-            .rejects.toThrow("Token has not match");
+            .rejects.toThrow("Missing token");
+        expect(users.save).not.toHaveBeenCalled();
     });
 
-    it("does not save the account when the email cannot be sent", async () => {
+    it("emails the activation link only once the account and its token are saved", async () => {
+        await withKeys();
+        const order: string[] = [];
+        users.save.mockImplementationOnce(async (entity: User) => { order.push("user"); return Object.assign(entity, { id: 33 }); });
+        tokens.save.mockImplementationOnce(async (entity: unknown) => { order.push("token"); return entity; });
+        sendMailMock.mockImplementationOnce(async () => { order.push("mail"); return { messageId: "m" }; });
+
+        await CreateUserWithRoleUseCase.getInstance().execute("x@gm-test.test", "x", Role.ADMIN, "admin-secret");
+
+        expect(order).toEqual(["user", "token", "mail"]);
+        expect(sendMailMock.mock.calls[0]?.[0].to).toBe("x@gm-test.test");
+    });
+
+    it("removes the account when the email cannot be sent", async () => {
         await withKeys();
         sendMailMock.mockRejectedValueOnce(new Error("SMTP down"));
 
         await expect(CreateUserWithRoleUseCase.getInstance().execute("x@gm-test.test", "x", Role.ADMIN, "admin-secret"))
             .rejects.toThrow("SMTP down");
+        const saved = users.save.mock.calls[0]?.[0];
+        expect(users.remove).toHaveBeenCalledWith(saved);
+    });
+
+    it("does not save the account when the role key is wrong", async () => {
+        await withKeys();
+
+        await expect(CreateUserWithRoleUseCase.getInstance().execute("x@gm-test.test", "x", Role.SOUND_CREATOR, "admin-secret"))
+            .rejects.toThrow("Token has not match");
         expect(users.save).not.toHaveBeenCalled();
+        expect(sendMailMock).not.toHaveBeenCalled();
     });
 });
