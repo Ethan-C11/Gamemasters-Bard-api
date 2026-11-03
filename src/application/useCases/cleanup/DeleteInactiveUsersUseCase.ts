@@ -6,7 +6,7 @@ import {UserStatus} from "../../../shared/enums/UserStatus.js";
 import {SendDeletionWarningEmailUseCase} from "./SendDeletionWarningEmailUseCase.js";
 import {MonthsAgo} from "../../../shared/utils/MonthsAgo.js";
 
-const inactivityMonthLimit: number = Number(process.env.INACTIVITY_MONTH_LIMIT) ?? 24;
+import {getInactivityMonthLimit} from "../../../shared/utils/InactivityMonthLimit.js";
 
 export class DeleteInactiveUsersUseCase {
 
@@ -26,11 +26,11 @@ export class DeleteInactiveUsersUseCase {
     }
 
     async execute(): Promise<number> {
-        const  DeleteTriggerDate = MonthsAgo.monthsAgo(inactivityMonthLimit);
+        const deleteTriggerDate = MonthsAgo.monthsAgo(getInactivityMonthLimit());
 
         const userToDelete = await this._userRepository.find({
             where: {
-                lastConnection: LessThan(MonthsAgo.monthsAgo(inactivityMonthLimit)),
+                lastConnection: LessThan(deleteTriggerDate),
             }
         });
 

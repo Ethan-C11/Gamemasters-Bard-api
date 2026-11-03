@@ -25,7 +25,7 @@ export class SendDeletionWarningEmailUseCase {
                 to: email,
                 replyTo: 'contact@gamemasters-bard.fr',
                 subject: "Gamemaster's Bard - Automatic Account Deletion",
-                text:"Hello\n\nYour account has been inactive for nearly 2 years.\n\nIf you do not come back within ${warningBeforeDeletionDays} days, your account will be permanently deleted.\n\nThis will also delete all uploaded sounds with no way to restore them.\n\nThis will also delete all uploaded sounds with no way to restore them.\n\nWe hope to see you soon !\n\n\nIf you do not own an account at Gamemaster's Bard, please ignore this mail",
+                text: `Hello\n\nYour account has been inactive for nearly 2 years.\n\nIf you do not come back within ${warningBeforeDeletionDays} days, your account will be permanently deleted.\n\nThis will also delete all uploaded sounds with no way to restore them.\n\nWe hope to see you soon !\n\n\nIf you do not own an account at Gamemaster's Bard, please ignore this mail`,
                 html: `
                 <p>Hello</p>
                 <p>Your account has been inactive for nearly 2 years.</p>

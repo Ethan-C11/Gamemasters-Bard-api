@@ -44,7 +44,7 @@ export class CreateUserWithRoleUseCase {
         else
             throw Error("You cannot create user/guest accounts");
 
-        if(hashedAuthToken == undefined)
+        if(!hashedAuthToken)
             throw Error("Missing token")
 
         if(!(await PasswordHasher.verify(hashedAuthToken, authToken)))
@@ -60,8 +60,6 @@ export class CreateUserWithRoleUseCase {
         const rawToken = TokenHasher.generate();
         const tokenHash = TokenHasher.hashToken(rawToken);
 
-        await SendActivationEmailUseCase.getInstance().execute(email, rawToken)
-
         await this._userRepository.save(newUser);
 
         const token = this._tokenRepository.create({
@@ -73,6 +71,13 @@ export class CreateUserWithRoleUseCase {
         });
 
         await this._tokenRepository.save(token);
+
+        try {
+            await SendActivationEmailUseCase.getInstance().execute(newUser.email, rawToken)
+        } catch (err) {
+            await this._userRepository.remove(newUser);
+            throw err;
+        }
 
         return newUser;
     }

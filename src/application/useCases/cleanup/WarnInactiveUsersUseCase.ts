@@ -6,7 +6,7 @@ import {UserStatus} from "../../../shared/enums/UserStatus.js";
 import {SendDeletionWarningEmailUseCase} from "./SendDeletionWarningEmailUseCase.js";
 import {MonthsAgo} from "../../../shared/utils/MonthsAgo.js";
 
-const inactivityMonthLimit: number = Number(process.env.INACTIVITY_MONTH_LIMIT) ?? 24;
+import {getInactivityMonthLimit} from "../../../shared/utils/InactivityMonthLimit.js";
 const warningBeforeDeletionDays = 30;
 
 export class WarnInactiveUsersUseCase {
@@ -27,7 +27,7 @@ export class WarnInactiveUsersUseCase {
     }
 
     async execute(): Promise<number> {
-        const warningTriggerDate = MonthsAgo.monthsAgo(inactivityMonthLimit - 1);
+        const warningTriggerDate = MonthsAgo.monthsAgo(getInactivityMonthLimit() - 1);
 
         const usersToWarn = await this._userRepository.find({
             where: {
