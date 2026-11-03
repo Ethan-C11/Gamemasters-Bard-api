@@ -1,5 +1,5 @@
 import {AppDataSource} from "../../../infrastructure/db/AppDataSource.js";
-import {Repository, type FindOptionsWhere} from "typeorm";
+import {Repository, IsNull, type FindOptionsWhere} from "typeorm";
 import {AudioTrack} from "../../../infrastructure/db/entities/audioTrack.entity.js";
 import {SoundType} from "../../../shared/enums/SoundType.js";
 import {Zone} from "../../../shared/enums/Zone.js";
@@ -46,8 +46,9 @@ class ResolveAudioUseCase {
         if (zone === undefined && ambiance === undefined)
             throw Error("You need to select at least one zone or ambiance");
 
-        const music = await this.pickSound(SoundType.MUSIC, zone, ambiance, session.alreadyPlayedMusic);
-        const environment = await this.pickSound(SoundType.ENVIRONMENT, zone, ambiance, session.alreadyPlayedEnvironment);
+        const hostId: number = session.owner.id;
+        const music = await this.pickSound(SoundType.MUSIC, hostId, zone, ambiance, session.alreadyPlayedMusic);
+        const environment = await this.pickSound(SoundType.ENVIRONMENT, hostId, zone, ambiance, session.alreadyPlayedEnvironment);
 
         if (!music.sound && !environment.sound)
             throw Error("No such sounds");
@@ -62,12 +63,17 @@ class ResolveAudioUseCase {
         };
     }
 
-    private async pickSound(type: SoundType, zone: Zone | undefined, ambiance: Ambiance | undefined, previousHistory: number[]): Promise<PickedSound> {
+    private async pickSound(type: SoundType, hostId: number, zone: Zone | undefined, ambiance: Ambiance | undefined, previousHistory: number[]): Promise<PickedSound> {
         const where: FindOptionsWhere<AudioTrack> = { type: type };
         if (zone !== undefined) where.zone = zone;
         if (ambiance !== undefined) where.ambiance = ambiance;
 
-        const soundList: AudioTrack[] = await this._audioTrackRepository.find({ where: where });
+        const soundList: AudioTrack[] = await this._audioTrackRepository.find({
+            where: [
+                { ...where, uploadedBy: IsNull() },
+                { ...where, uploadedBy: { id: hostId } },
+            ],
+        });
         if (soundList.length <= 0)
             return { sound: null, history: previousHistory };
 
