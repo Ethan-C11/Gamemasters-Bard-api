@@ -123,6 +123,9 @@ describe("SendDeletionWarningEmailUseCase", () => {
         expect(mail.to).toBe("old@gm-test.test");
         expect(mail.subject).toContain("Automatic Account Deletion");
         expect(mail.html).toContain("within 30 days");
+        expect(mail.text).toContain("within 30 days");
+        expect(mail.text).not.toContain("${");
+        expect(mail.text.match(/This will also delete all uploaded sounds/g)).toHaveLength(1);
     });
 
     it("propagates mailer errors", async () => {
