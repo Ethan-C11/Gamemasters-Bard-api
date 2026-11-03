@@ -45,6 +45,7 @@
     "@swc-node/register": "^1.11.1",
     "@swc/core": "^1.15.43",
     "@types/node": "^26.1.1",
+    "@types/pg": "^8.23.1",
     "@vitest/coverage-v8": "^4.1.12",
     "husky": "^9.1.7",
     "typescript": "^5.9.3",
