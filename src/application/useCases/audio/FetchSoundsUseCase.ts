@@ -48,9 +48,6 @@ class FetchSoundsUseCase {
             take: limit
         });
 
-        if(soundList.length <= 0)
-            throw Error("No such sounds");
-
         const responseList: AudioTrackResponse[] = soundList.map(chosenSound => {
             return {
                 key: chosenSound.storageKey,
