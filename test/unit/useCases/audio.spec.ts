@@ -112,8 +112,9 @@ describe("ImportAudioUseCase", () => {
         expect(storageMock.upload).not.toHaveBeenCalled();
     });
 
-    it("refuses a private upload from an unknown user", async () => {
+    it("refuses a private upload from an unknown user without storing the file", async () => {
         await expect(importAudio(fakeFile())).rejects.toThrow("User does not exist");
+        expect(storageMock.upload).not.toHaveBeenCalled();
         expect(tracks.save).not.toHaveBeenCalled();
     });
 });

@@ -81,14 +81,14 @@ class ImportAudioUseCase {
         if (await this._audioTrackRepository.exists({ where: { storageKey: key } }))
             throw Error("A file with this name has already been uploaded");
 
-        await MinioStorageService.getInstance().upload(key, buffer, buffer.length, file.mimetype);
-
         let uploader: User | null = null;
         if (isUserImported && userId) {
             uploader = await this._userRepository.findOneBy({ id: userId });
             if (!uploader)
                 throw Error("User does not exist");
         }
+
+        await MinioStorageService.getInstance().upload(key, buffer, buffer.length, file.mimetype);
 
         const audioTrack = this._audioTrackRepository.create({
             name: name,
