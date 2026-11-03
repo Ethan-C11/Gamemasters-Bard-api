@@ -72,6 +72,51 @@ npm start
 > never populates `dist/` — which is where `npm start` looks. Set both options
 > before relying on the production build or the `prod` stage of the Dockerfile.
 
+## Tests
+
+Tests run with [Vitest](https://vitest.dev), split into four projects:
+
+| Project      | Location            | What it covers                                                        | Needs Docker |
+|--------------|---------------------|-----------------------------------------------------------------------|--------------|
+| `unit`       | `test/unit/`        | Use cases, utils, hooks and infrastructure, with mocked DB/storage/mail | No           |
+| `functional` | `test/functional/`  | HTTP routes through `buildApp()`: validation, auth, roles, status codes | No           |
+| `e2e`        | `test/e2e/`         | Full scenarios over HTTP against a real PostgreSQL and MinIO           | Yes          |
+| `latency`    | `test/latency/`     | p95 response time of the main routes against a budget                 | Yes          |
+
+```bash
+npm test                # unit + functional
+npm run test:coverage   # unit + functional with coverage thresholds
+npm run test:e2e        # requires PostgreSQL and MinIO
+npm run test:latency    # requires PostgreSQL and MinIO
+npm run test:all        # every project
+npm run typecheck
+```
+
+Coverage is enforced on unit + functional tests (95% lines/statements/functions,
+90% branches); the HTML report lands in `coverage/`.
+
+**E2E and latency tests** reuse the containers from `docker compose up -d
+gm-postgres gm-minio` and the credentials of `.env`, but never touch dev data:
+they work in a `<POSTGRES_DB>_test` database (created automatically and reset
+for every test file) and an `<S3_BUCKET>-test` bucket. Emails are intercepted,
+nothing is sent. Override the targets with `TEST_DATABASE_URL` /
+`TEST_S3_BUCKET`, and relax the latency budgets on a slow machine with
+`LATENCY_BUDGET_FACTOR=2`.
+
+### Continuous integration
+
+`.github/workflows/ci.yml` runs on every push and on pull requests to `master`
+and `develop`:
+
+- **quality**: typecheck, then unit + functional tests with coverage thresholds
+  (coverage report uploaded as an artifact and summarised in the run).
+- **integration**: E2E then latency tests against PostgreSQL 17 and MinIO
+  service containers (latency table added to the run summary).
+
+A [husky](https://typicode.github.io/husky) `pre-push` hook runs the typecheck
+and the covered unit + functional tests before every `git push`, and blocks the
+push if anything fails. It is installed by `npm install`.
+
 ## Environment Variables
 
 Copy `.env.example` to `.env` and fill in the S3 credentials produced by the
