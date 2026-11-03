@@ -8,13 +8,13 @@ import ImportAudioUseCase from "../../../application/useCases/audio/ImportAudioU
 import {
     ImportAudioTrackBody,
     AudioTrackResponse,
-    ResolveAudioTrackBody, ResolveAudioResponse, ListAudioTracksBody, PaginatedAudioTrackResponse
+    DrawSessionSoundsBody, DrawSessionSoundsResponse, ListAudioTracksBody, PaginatedAudioTrackResponse
 } from "../../../application/dtos/soundTrack.schema.js";
 import {authenticate} from "../hooks/authenticate.js";
 import {authorize} from "../hooks/authorize.js";
 import {Role} from "../../../shared/enums/Role.js";
-import ResolveAudioUseCase from "../../../application/useCases/audio/ResolveAudioUseCase.js";
-import FetchSoundsUseCase from "../../../application/useCases/audio/FetchSoundsUseCase.js";
+import DrawSessionSoundsUseCase from "../../../application/useCases/audio/DrawSessionSoundsUseCase.js";
+import ListAudioTracksUseCase from "../../../application/useCases/audio/ListAudioTracksUseCase.js";
 
 interface ImportAudioMultipartBody {
     name?: { value?: string };
@@ -62,9 +62,9 @@ export const audioRoutes: FastifyPluginAsyncTypebox = async (app) => {
         schema: {
             tags: ["Soundtrack"],
             summary: "Randomly select a music and an environment sound for a session, by zone and/or ambiance (at least one)",
-            body: ResolveAudioTrackBody,
+            body: DrawSessionSoundsBody,
             response: {
-                200: ResolveAudioResponse,
+                200: DrawSessionSoundsResponse,
                 400: ErrorResponse,
             },
         },
@@ -72,7 +72,7 @@ export const audioRoutes: FastifyPluginAsyncTypebox = async (app) => {
         const { sessionId, zone, ambiance } = request.body;
 
         try {
-            const soundTrack = await ResolveAudioUseCase.getInstance().execute(request.user.id, sessionId, zone, ambiance);
+            const soundTrack = await DrawSessionSoundsUseCase.getInstance().execute(request.user.id, sessionId, zone, ambiance);
 
             return reply.status(200).send(soundTrack);
         } catch (err) {
@@ -95,7 +95,7 @@ export const audioRoutes: FastifyPluginAsyncTypebox = async (app) => {
         const { type, zone, ambiance, isUserImported, offset = 0, limit = 20 } = request.body;
 
         try {
-            const result = await FetchSoundsUseCase.getInstance().execute(
+            const result = await ListAudioTracksUseCase.getInstance().execute(
                 request.user.id,
                 type,
                 zone,

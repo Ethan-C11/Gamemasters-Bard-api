@@ -7,12 +7,12 @@ import {Ambiance} from "../../shared/enums/Ambiance.js";
 export const ImportAudioTrackBody = Type.Any();
 export type ImportAudioTrackBody = Static<typeof ImportAudioTrackBody>;
 
-export const ResolveAudioTrackBody = Type.Object({
+export const DrawSessionSoundsBody = Type.Object({
         sessionId: Type.Number(),
         zone: Type.Optional(Type.Enum(Zone)),
         ambiance: Type.Optional(Type.Enum(Ambiance)),
 });
-export type ResolveAudioTrackBody = Static<typeof ResolveAudioTrackBody>;
+export type DrawSessionSoundsBody = Static<typeof DrawSessionSoundsBody>;
 
 
 export const AudioTrackResponse = Type.Object({
@@ -26,12 +26,12 @@ export const AudioTrackResponse = Type.Object({
 
 export type AudioTrackResponse = Static<typeof AudioTrackResponse>;
 
-export const ResolveAudioResponse = Type.Object({
+export const DrawSessionSoundsResponse = Type.Object({
     music: Type.Union([AudioTrackResponse, Type.Null()]),
     environment: Type.Union([AudioTrackResponse, Type.Null()]),
 });
 
-export type ResolveAudioResponse = Static<typeof ResolveAudioResponse>;
+export type DrawSessionSoundsResponse = Static<typeof DrawSessionSoundsResponse>;
 
 export const PaginatedAudioTrackResponse = Type.Object({
     data: Type.Array(AudioTrackResponse),

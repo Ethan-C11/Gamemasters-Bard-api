@@ -4,15 +4,15 @@ import {AudioTrack} from "../../../infrastructure/db/entities/audioTrack.entity.
 import {SoundType} from "../../../shared/enums/SoundType.js";
 import {Zone} from "../../../shared/enums/Zone.js";
 import {Ambiance} from "../../../shared/enums/Ambiance.js";
-import {AudioTrackResponse, ResolveAudioResponse} from "../../dtos/soundTrack.schema.js";
+import {AudioTrackResponse, DrawSessionSoundsResponse} from "../../dtos/soundTrack.schema.js";
 import {User} from "../../../infrastructure/db/entities/user.entity.js";
 import {Session} from "../../../infrastructure/db/entities/session.entity.js";
 
 type PickedSound = { sound: AudioTrack | null; history: number[] };
 
-class ResolveAudioUseCase {
+class DrawSessionSoundsUseCase {
 
-    private static _instance: ResolveAudioUseCase;
+    private static _instance: DrawSessionSoundsUseCase;
 
     private _audioTrackRepository: Repository<AudioTrack>;
     private _userRepository: Repository<User>;
@@ -24,14 +24,14 @@ class ResolveAudioUseCase {
         this._sessionRepository = AppDataSource.getRepository(Session);
     }
 
-    static getInstance(): ResolveAudioUseCase {
-        if (!ResolveAudioUseCase._instance) {
-            ResolveAudioUseCase._instance = new ResolveAudioUseCase();
+    static getInstance(): DrawSessionSoundsUseCase {
+        if (!DrawSessionSoundsUseCase._instance) {
+            DrawSessionSoundsUseCase._instance = new DrawSessionSoundsUseCase();
         }
-        return ResolveAudioUseCase._instance;
+        return DrawSessionSoundsUseCase._instance;
     }
 
-    async execute(userId: number, sessionId: number, zone: Zone | undefined, ambiance: Ambiance | undefined): Promise<ResolveAudioResponse> {
+    async execute(userId: number, sessionId: number, zone: Zone | undefined, ambiance: Ambiance | undefined): Promise<DrawSessionSoundsResponse> {
         const user: User | null = await this._userRepository.findOneBy({ id: userId });
         if (!user) throw Error("User does not exist");
 
@@ -112,4 +112,4 @@ class ResolveAudioUseCase {
     }
 }
 
-export default ResolveAudioUseCase;
+export default DrawSessionSoundsUseCase;

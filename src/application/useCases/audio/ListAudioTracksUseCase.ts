@@ -7,8 +7,8 @@ import {AudioTrackResponse, PaginatedAudioTrackResponse} from "../../dtos/soundT
 import {User} from "../../../infrastructure/db/entities/user.entity.js";
 import {Ambiance} from "../../../shared/enums/Ambiance.js";
 
-class FetchSoundsUseCase {
-    private static _instance: FetchSoundsUseCase;
+class ListAudioTracksUseCase {
+    private static _instance: ListAudioTracksUseCase;
 
     private _audioTrackRepository: Repository<AudioTrack>;
     private _userRepository: Repository<User>;
@@ -18,11 +18,11 @@ class FetchSoundsUseCase {
         this._userRepository = AppDataSource.getRepository(User);
     }
 
-    static getInstance(): FetchSoundsUseCase {
-        if (!FetchSoundsUseCase._instance) {
-            FetchSoundsUseCase._instance = new FetchSoundsUseCase();
+    static getInstance(): ListAudioTracksUseCase {
+        if (!ListAudioTracksUseCase._instance) {
+            ListAudioTracksUseCase._instance = new ListAudioTracksUseCase();
         }
-        return FetchSoundsUseCase._instance;
+        return ListAudioTracksUseCase._instance;
     }
 
     async execute(userId: number = 0, type: SoundType | undefined, zone: Zone | undefined, ambiance: Ambiance | undefined, isUserImported: boolean | undefined, offset: number = 0, limit: number = 20): Promise<PaginatedAudioTrackResponse> {
@@ -67,4 +67,4 @@ class FetchSoundsUseCase {
     }
 }
 
-export default FetchSoundsUseCase
+export default ListAudioTracksUseCase
