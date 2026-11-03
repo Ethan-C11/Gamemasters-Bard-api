@@ -1,5 +1,5 @@
 export enum SoundType {
-    ZONE = 'zone',
-    AMBIANCE = 'ambiance',
+    MUSIC = 'music',
+    ENVIRONMENT = 'environment',
     SOUNDBOARD = 'soundboard',
 }
