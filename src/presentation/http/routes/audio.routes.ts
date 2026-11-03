@@ -1,6 +1,5 @@
-import type { FastifyInstance } from "fastify";
-import {MultipartFile} from "@fastify/multipart";
-import {AuthResponse} from "../../../application/dtos/auth.schema.js";
+import type { FastifyPluginAsyncTypebox } from "@fastify/type-provider-typebox";
+import type { MultipartFile } from "@fastify/multipart";
 import {ErrorResponse} from "../../../application/dtos/shared.schema.js";
 import {SoundType} from "../../../shared/enums/SoundType.js";
 import {Zone} from "../../../shared/enums/Zone.js";
@@ -9,21 +8,30 @@ import ImportAudioUseCase from "../../../application/useCases/audio/ImportAudioU
 import {
     ImportAudioTrackBody,
     AudioTrackResponse,
-    ResolveAudioTrackBody, ListAudioTracksBody, PaginatedAudioTrackResponse
+    DrawSessionSoundsBody, DrawSessionSoundsResponse, ListAudioTracksBody, PaginatedAudioTrackResponse
 } from "../../../application/dtos/soundTrack.schema.js";
 import {authenticate} from "../hooks/authenticate.js";
 import {authorize} from "../hooks/authorize.js";
 import {Role} from "../../../shared/enums/Role.js";
-import ResolveAudioUseCase from "../../../application/useCases/audio/ResolveAudioUseCase.js";
-import FetchSoundsUseCase from "../../../application/useCases/audio/FetchSoundsUseCase.js";
+import DrawSessionSoundsUseCase from "../../../application/useCases/audio/DrawSessionSoundsUseCase.js";
+import ListAudioTracksUseCase from "../../../application/useCases/audio/ListAudioTracksUseCase.js";
 
-export async function audioRoutes(app: FastifyInstance) {
+interface ImportAudioMultipartBody {
+    name?: { value?: string };
+    type?: { value?: string };
+    zone?: { value?: string };
+    ambiance?: { value?: string };
+    isUserImported?: { value?: string };
+    file?: MultipartFile;
+}
+
+export const audioRoutes: FastifyPluginAsyncTypebox = async (app) => {
 
     app.post("/upload", {
         preHandler: [authenticate, authorize(Role.USER, Role.ADMIN, Role.SOUND_CREATOR)],
         schema: {
             tags: ["Soundtrack"],
-            summary: "Upload a sound for every user",
+            summary: "Upload a sound for every user (multipart: file, name, zone, ambiance, type, [isUserImported])",
             body: ImportAudioTrackBody,
             response: {
                 200: AudioTrackResponse,
@@ -31,9 +39,9 @@ export async function audioRoutes(app: FastifyInstance) {
             },
         },
     }, async (request, reply) => {
-        const body = request.body as any;
+        const body = request.body as ImportAudioMultipartBody;
 
-        const name = body.name?.value;
+        const name = body.name?.value ?? "";
         const type = body.type?.value as SoundType;
         const zone = (body.zone?.value || undefined) as Zone | undefined;
         const ambiance = (body.ambiance?.value || undefined) as Ambiance | undefined;
@@ -53,24 +61,18 @@ export async function audioRoutes(app: FastifyInstance) {
         preHandler: [authenticate, authorize(Role.USER, Role.ADMIN, Role.SOUND_CREATOR)],
         schema: {
             tags: ["Soundtrack"],
-            summary: "Randomly select a sound for a specific session",
-            body: ResolveAudioTrackBody,
+            summary: "Randomly select a music and an environment sound for a session, by zone and/or ambiance (at least one)",
+            body: DrawSessionSoundsBody,
             response: {
-                200: AudioTrackResponse,
+                200: DrawSessionSoundsResponse,
                 400: ErrorResponse,
             },
         },
     }, async (request, reply) => {
-        const body = request.body as any;
-
-        const sessionId = body.type?.value as number
-        const type = body.type?.value as SoundType;
-        const zone = (body.zone?.value || undefined) as Zone | undefined;
-        const ambiance = (body.ambiance?.value || undefined) as Ambiance | undefined;
-
+        const { sessionId, zone, ambiance } = request.body;
 
         try {
-            const soundTrack = await ResolveAudioUseCase.getInstance().execute(request.user.id, sessionId, type, zone, ambiance);
+            const soundTrack = await DrawSessionSoundsUseCase.getInstance().execute(request.user.id, sessionId, zone, ambiance);
 
             return reply.status(200).send(soundTrack);
         } catch (err) {
@@ -82,7 +84,7 @@ export async function audioRoutes(app: FastifyInstance) {
         preHandler: [authenticate, authorize(Role.USER, Role.ADMIN, Role.SOUND_CREATOR)],
         schema: {
             tags: ["Soundtrack"],
-            summary: "Get a paginated list of audio tracks based on filters",
+            summary: "Get a paginated list of audio tracks, optionally filtered by zone and/or ambiance",
             body: ListAudioTracksBody,
             response: {
                 200: PaginatedAudioTrackResponse,
@@ -90,18 +92,10 @@ export async function audioRoutes(app: FastifyInstance) {
             },
         },
     }, async (request, reply) => {
-        const body = request.body as any;
-
-        const type = (body.type?.value ?? body.type) as SoundType;
-        const zone = (body.zone?.value ?? body.zone) as Zone | undefined;
-        const ambiance = (body.ambiance?.value ?? body.ambiance) as Ambiance | undefined;
-        const isUserImported = body.isUserImported as boolean | undefined;
-
-        const offset = (body.offset ?? 0) as number;
-        const limit = (body.limit ?? 20) as number;
+        const { type, zone, ambiance, isUserImported, offset = 0, limit = 20 } = request.body;
 
         try {
-            const result = await FetchSoundsUseCase.getInstance().execute(
+            const result = await ListAudioTracksUseCase.getInstance().execute(
                 request.user.id,
                 type,
                 zone,

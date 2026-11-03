@@ -1,15 +1,14 @@
 import {AppDataSource} from "../../../infrastructure/db/AppDataSource.js";
-import {Repository} from "typeorm";
+import {Repository, IsNull, type FindOptionsWhere} from "typeorm";
 import {AudioTrack} from "../../../infrastructure/db/entities/audioTrack.entity.js";
 import {SoundType} from "../../../shared/enums/SoundType.js";
 import {Zone} from "../../../shared/enums/Zone.js";
 import {AudioTrackResponse, PaginatedAudioTrackResponse} from "../../dtos/soundTrack.schema.js";
 import {User} from "../../../infrastructure/db/entities/user.entity.js";
 import {Ambiance} from "../../../shared/enums/Ambiance.js";
-import { IsNull } from 'typeorm';
 
-class FetchSoundsUseCase {
-    private static _instance: FetchSoundsUseCase;
+class ListAudioTracksUseCase {
+    private static _instance: ListAudioTracksUseCase;
 
     private _audioTrackRepository: Repository<AudioTrack>;
     private _userRepository: Repository<User>;
@@ -19,38 +18,27 @@ class FetchSoundsUseCase {
         this._userRepository = AppDataSource.getRepository(User);
     }
 
-    static getInstance(): FetchSoundsUseCase {
-        if (!FetchSoundsUseCase._instance) {
-            FetchSoundsUseCase._instance = new FetchSoundsUseCase();
+    static getInstance(): ListAudioTracksUseCase {
+        if (!ListAudioTracksUseCase._instance) {
+            ListAudioTracksUseCase._instance = new ListAudioTracksUseCase();
         }
-        return FetchSoundsUseCase._instance;
+        return ListAudioTracksUseCase._instance;
     }
 
-    async execute(userId: number = 0, type: SoundType,zone: Zone | undefined, ambiance: Ambiance | undefined, isUserImported: boolean | undefined, offset: number = 0, limit: number = 20): Promise<PaginatedAudioTrackResponse> {
-        if (type !== SoundType.ZONE && type !== SoundType.AMBIANCE) {
-            throw Error("SoundType is invalid and/or zone/ambiance has not been chosen");
-        }
-
+    async execute(userId: number = 0, type: SoundType | undefined, zone: Zone | undefined, ambiance: Ambiance | undefined, isUserImported: boolean | undefined, offset: number = 0, limit: number = 20): Promise<PaginatedAudioTrackResponse> {
         const user: User | null = await this._userRepository.findOneBy({ id: userId });
         if (!user)
             throw Error("User does not exist");
 
-        const baseCondition: any = {
-            type: type
-        };
+        const baseCondition: FindOptionsWhere<AudioTrack> = {};
 
-        if (isUserImported !== undefined) {
-            baseCondition.isUserImported = isUserImported;
-        }
+        if (type !== undefined) baseCondition.type = type;
+        if (isUserImported !== undefined) baseCondition.isUserImported = isUserImported;
+        if (zone !== undefined) baseCondition.zone = zone;
+        if (ambiance !== undefined) baseCondition.ambiance = ambiance;
 
-        if (type === SoundType.ZONE && zone != null) {
-            baseCondition.zone = zone;
-        } else if (type === SoundType.AMBIANCE && ambiance != null) {
-            baseCondition.ambianceMusic = ambiance;
-        }
-
-        const finalWhereCondition = [
-            { ...baseCondition, uploadedBy: userId },
+        const finalWhereCondition: FindOptionsWhere<AudioTrack>[] = [
+            { ...baseCondition, uploadedBy: { id: userId } },
             { ...baseCondition, uploadedBy: IsNull() }
         ];
 
@@ -60,26 +48,23 @@ class FetchSoundsUseCase {
             take: limit
         });
 
-        if(soundList.length <= 0)
-            throw Error("No such sounds");
-
         const responseList: AudioTrackResponse[] = soundList.map(chosenSound => {
             return {
                 key: chosenSound.storageKey,
                 name: chosenSound.name,
                 type: chosenSound.type,
-                zone: chosenSound.zone?.toString(),
-                ambiance: chosenSound.ambianceMusic?.toString(),
+                zone: chosenSound.zone,
+                ambiance: chosenSound.ambiance,
                 isUserImported: chosenSound.isUserImported,
-            } as AudioTrackResponse;
+            };
         });
 
         return {
             data: responseList,
             total: totalCount
-        } as PaginatedAudioTrackResponse;
+        };
 
     }
 }
 
-export default FetchSoundsUseCase
+export default ListAudioTracksUseCase

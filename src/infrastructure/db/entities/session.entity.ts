@@ -23,8 +23,8 @@ export class Session {
     sessionMembers: Relation<User[]>;
 
     @Column({ type: 'int', array: true, default: [] })
-    alreadyPlayedAmbianceMusic: number[];
+    alreadyPlayedMusic: number[];
 
     @Column({ type: 'int', array: true, default: [] })
-    alreadyPlayedZoneMusic: number[];
+    alreadyPlayedEnvironment: number[];
 }

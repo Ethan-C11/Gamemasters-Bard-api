@@ -36,7 +36,7 @@ export class DeleteUserUseCase {
                 await MinioStorageService.getInstance().delete(soundTrack.storageKey);
                 await this._audioTrackRepository.remove(soundTrack)
                 const folderArray = soundTrack.storageKey.split("/")
-                const folder = folderArray[0] + "/" + folderArray[1] + "/" + folderArray[2];
+                const folder = folderArray[0] + "/" + folderArray[1];
                 folders.push(folder)
             }
 

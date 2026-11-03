@@ -48,8 +48,14 @@ class ImportAudioUseCase {
         if (!this._allowedMimeTypes.includes(file.mimetype.toLowerCase()))
             throw Error(`File type "${file.mimetype}" is not allowed`);
 
-        if(!ambiance && !zone)
-            throw Error("You need to select at least one zone or ambiance" );
+        if (!Object.values(SoundType).includes(type))
+            throw Error(`Sound type "${type}" is invalid`);
+
+        if (!zone || !Object.values(Zone).includes(zone))
+            throw Error("A valid zone is required");
+
+        if (!ambiance || !Object.values(Ambiance).includes(ambiance))
+            throw Error("A valid ambiance is required");
 
 
         const buffer = await file.toBuffer();
@@ -70,7 +76,10 @@ class ImportAudioUseCase {
                 throw new Error(`Maximum upload capacity of ${this._maxMbPerUser} is reached for this user`)
         }
 
-        const key = `sounds/${type}/${userId}/${file.filename}`;
+        const key = `sounds/${userId}/${file.filename}`;
+
+        if (await this._audioTrackRepository.exists({ where: { storageKey: key } }))
+            throw Error("A file with this name has already been uploaded");
 
         await MinioStorageService.getInstance().upload(key, buffer, buffer.length, file.mimetype);
 
@@ -87,8 +96,8 @@ class ImportAudioUseCase {
             mimeType: file.mimetype,
             sizeInBytes: buffer.length,
             type: type,
-            zone: zone ?? null,
-            ambianceMusic: ambiance ?? null,
+            zone: zone,
+            ambiance: ambiance,
             uploadedBy: uploader,
             isUserImported: isUserImported,
         });

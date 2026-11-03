@@ -18,7 +18,7 @@ export class AudioTrack {
     id: number;
     @Column()
     name: string;
-    @Column()
+    @Column({ unique: true })
     storageKey: string;
     @Column()
     mimeType: string;
@@ -26,10 +26,10 @@ export class AudioTrack {
     sizeInBytes: number;
     @Column({ type: 'enum', enum: SoundType })
     type: SoundType;
-    @Column({ type: 'enum', enum: Zone, nullable: true })
-    zone: Zone | null;
-    @Column({ type: 'enum', enum: Ambiance, nullable: true })
-    ambianceMusic: Ambiance | null;
+    @Column({ type: 'enum', enum: Zone })
+    zone: Zone;
+    @Column({ type: 'enum', enum: Ambiance })
+    ambiance: Ambiance;
     @ManyToOne(() => User, (user) => user.importedSounds, { nullable: true })
     @JoinColumn()
     uploadedBy: Relation<User> | null;

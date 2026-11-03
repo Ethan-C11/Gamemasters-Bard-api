@@ -37,8 +37,13 @@ export async function authRoutes(app: FastifyInstance) {
 
             const payload: JwtPayload = { id: user.id, email: user.email, role: user.role };
             const token = app.jwt.sign(payload);
+            const refreshToken = await IssueRefreshTokenUseCase.getInstance().execute(user.id);
 
-            return reply.status(201).send({ token, user: { id: user.id, email: user.email, username: user.username } });
+            return reply.status(201).send({
+                token,
+                refreshToken,
+                user: { id: user.id, email: user.email, username: user.username }
+            });
         } catch (err) {
             return reply.status(400).send({ error: (err as Error).message });
         }
