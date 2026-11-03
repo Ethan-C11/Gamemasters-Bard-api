@@ -6,7 +6,16 @@
   "scripts": {
     "dev": "node --watch --env-file=.env --import @swc-node/register/esm-register src/index.ts",
     "build": "tsc",
-    "start": "node dist/index.js"
+    "start": "node dist/index.js",
+    "typecheck": "tsc --noEmit -p .",
+    "test": "vitest run --project unit --project functional",
+    "test:unit": "vitest run --project unit",
+    "test:functional": "vitest run --project functional",
+    "test:e2e": "vitest run --project e2e",
+    "test:latency": "vitest run --project latency",
+    "test:coverage": "vitest run --project unit --project functional --coverage",
+    "test:all": "vitest run",
+    "prepare": "husky || true"
   },
   "keywords": [],
   "author": "",
@@ -36,6 +45,10 @@
     "@swc-node/register": "^1.11.1",
     "@swc/core": "^1.15.43",
     "@types/node": "^26.1.1",
-    "typescript": "^5.9.3"
+    "@vitest/coverage-v8": "^4.1.12",
+    "husky": "^9.1.7",
+    "typescript": "^5.9.3",
+    "unplugin-swc": "^2.0.0",
+    "vitest": "^4.1.12"
   }
 }
