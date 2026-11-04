@@ -28,6 +28,21 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
+      - name: Production build
+        run: |
+          npm run build
+          test -f dist/index.js
+          if git status --porcelain --untracked-files=all | grep -v '^?? dist/'; then
+            echo "Build emitted files outside dist/"
+            exit 1
+          fi
+          JWT_SECRET=ci TOKEN_HMAC_SECRET=ci node --input-type=module -e "
+            const { buildApp } = await import('./dist/app.js');
+            const app = await buildApp({ logger: false });
+            await app.ready();
+            await app.close();
+          "
+
       - name: Unit & functional tests with coverage
         run: npm run test:coverage
 
