@@ -31,7 +31,7 @@ export class AccountActivationUseCase {
 
     async execute(rawToken: string, password: string): Promise<User> {
         const tokenHash : string = TokenHasher.hashToken(rawToken);
-        const tokenRow = await this._tokenRepository.findOne({ where: { tokenHash }, relations : {user: true}})
+        const tokenRow = await this._tokenRepository.findOne({ where: { tokenHash, purpose: TokenPurpose.ACCOUNT_ACTIVATION }, relations : {user: true}})
 
         if(!tokenRow) throw new Error("Invalid token")
         if(tokenRow.usedAt) throw new Error("Already used token")
