@@ -121,7 +121,10 @@ describe("AccountActivationUseCase", () => {
 
         const activated = await AccountActivationUseCase.getInstance().execute("raw", "aVeryLongPassword");
 
-        expect(tokens.findOne).toHaveBeenCalledWith({ where: { tokenHash: TokenHasher.hashToken("raw") }, relations: { user: true } });
+        expect(tokens.findOne).toHaveBeenCalledWith({
+            where: { tokenHash: TokenHasher.hashToken("raw"), purpose: TokenPurpose.ACCOUNT_ACTIVATION },
+            relations: { user: true },
+        });
         expect(activated.userStatus).toBe(UserStatus.ACTIVE);
         expect(activated.lastConnection).toBeInstanceOf(Date);
         await expect(PasswordHasher.verify(activated.hashedPassword as string, "aVeryLongPassword")).resolves.toBe(true);

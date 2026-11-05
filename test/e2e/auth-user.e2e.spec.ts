@@ -236,6 +236,19 @@ describe("password reset", () => {
         expect(activation.body.error).toBe("Invalid token");
     });
 
+    it("does not let a reset link activate an account", async () => {
+        const { email } = await signUpAndSignIn(api, "crosskind", "oldPassword1");
+
+        await api.post("/auth/forgot-password", { email });
+        const rawToken = await resetTokenFromMail();
+
+        const activated = await api.post("/auth/activate", { token: rawToken, password: "anotherLongPassword1" });
+        expect(activated.status).toBe(401);
+        expect(activated.body.error).toBe("Invalid token");
+        expect((await api.post("/auth/signin", { email, password: "oldPassword1" })).status).toBe(200);
+        expect((await api.post("/auth/reset-password", { token: rawToken, password: "brandNewPassword1" })).status).toBe(200);
+    });
+
     it("requires 12 characters for elevated accounts", async () => {
         const email = uniqueEmail("elevated");
         await AppDataSource.getRepository(User).save(AppDataSource.getRepository(User).create({
