@@ -37,6 +37,17 @@ export const ActivateResponse = Type.Object({
     }),
 });
 
+export const ForgotPasswordBody = Type.Object({
+    email: Type.String({ format: "email" }),
+});
+export type ForgotPasswordBody = Static<typeof ForgotPasswordBody>;
+
+export const ResetPasswordBody = Type.Object({
+    token: Type.String(),
+    password: Type.String({ minLength: 8 }),
+});
+export type ResetPasswordBody = Static<typeof ResetPasswordBody>;
+
 export const RefreshBody = Type.Object({
     refreshToken: Type.String(),
 });

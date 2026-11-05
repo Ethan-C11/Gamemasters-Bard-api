@@ -61,6 +61,15 @@ describe("route latency (p95)", () => {
         expect(stats.p95).toBeLessThan(stats.budgetP95);
     });
 
+    it("POST /auth/forgot-password", async () => {
+        const stats = await measure("POST /auth/forgot-password", 150, async () => {
+            const res = await api.post("/auth/forgot-password", { email: user.email });
+            expect(res.status).toBe(200);
+        });
+
+        expect(stats.p95).toBeLessThan(stats.budgetP95);
+    });
+
     it("PUT /user", async () => {
         const stats = await measure("PUT /user", 150, async (i) => {
             const res = await user.client.put("/user", { username: `latency${Math.abs(i)}` });

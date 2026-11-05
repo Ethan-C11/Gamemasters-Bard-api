@@ -5,18 +5,24 @@ import { sendMailMock } from "../../helpers/mockStorage.js";
 import { makeUser } from "../../helpers/factories.js";
 import { User } from "../../../src/infrastructure/db/entities/user.entity.js";
 import { RefreshToken } from "../../../src/infrastructure/db/entities/refreshToken.entity.js";
+import { ActivationToken } from "../../../src/infrastructure/db/entities/activationToken.entity.js";
 import { SignUpUseCase } from "../../../src/application/useCases/auth/SignUpUseCase.js";
 import { SignInUseCase } from "../../../src/application/useCases/auth/SignInUseCase.js";
 import { IssueRefreshTokenUseCase } from "../../../src/application/useCases/auth/IssueRefreshTokenUseCase.js";
 import { RefreshAccessTokenUseCase } from "../../../src/application/useCases/auth/RefreshAccessTokenUseCase.js";
 import { SendActivationEmailUseCase } from "../../../src/application/useCases/auth/SendActivationEmailUseCase.js";
+import { SendPasswordResetEmailUseCase } from "../../../src/application/useCases/auth/SendPasswordResetEmailUseCase.js";
+import { RequestPasswordResetUseCase } from "../../../src/application/useCases/auth/RequestPasswordResetUseCase.js";
+import { ResetPasswordUseCase } from "../../../src/application/useCases/auth/ResetPasswordUseCase.js";
 import { PasswordHasher } from "../../../src/shared/utils/PasswordHasher.js";
 import { TokenHasher } from "../../../src/shared/utils/TokenHasher.js";
 import { Role } from "../../../src/shared/enums/Role.js";
 import { UserStatus } from "../../../src/shared/enums/UserStatus.js";
+import { TokenPurpose } from "../../../src/shared/enums/TokenPurpose.js";
 
 const users = repositoryFor(User);
 const refreshTokens = repositoryFor(RefreshToken);
+const activationTokens = repositoryFor(ActivationToken);
 
 afterEach(() => {
     vi.useRealTimers();
@@ -183,5 +189,177 @@ describe("SendActivationEmailUseCase", () => {
 
         await expect(SendActivationEmailUseCase.getInstance().execute("new@gm-test.test", "raw-token"))
             .rejects.toThrow("SMTP down");
+    });
+});
+
+describe("SendPasswordResetEmailUseCase", () => {
+    it("returns the same singleton instance", () => {
+        expect(SendPasswordResetEmailUseCase.getInstance()).toBe(SendPasswordResetEmailUseCase.getInstance());
+    });
+
+    it("sends the reset link to the user", async () => {
+        sendMailMock.mockResolvedValueOnce({ messageId: "msg-2" });
+
+        const messageId = await SendPasswordResetEmailUseCase.getInstance().execute("gm@gm-test.test", "raw-token");
+
+        const mail = sendMailMock.mock.calls[0]?.[0];
+        expect(messageId).toBe("msg-2");
+        expect(mail.to).toBe("gm@gm-test.test");
+        expect(mail.from).toBe(process.env.EMAIL_FROM);
+        expect(mail.subject).toContain("Reset your password");
+        expect(mail.text).toContain("http://frontend.test/reset-password?token=raw-token");
+        expect(mail.html).toContain("http://frontend.test/reset-password?token=raw-token");
+    });
+
+    it("propagates mailer errors", async () => {
+        sendMailMock.mockRejectedValueOnce(new Error("SMTP down"));
+
+        await expect(SendPasswordResetEmailUseCase.getInstance().execute("gm@gm-test.test", "raw-token"))
+            .rejects.toThrow("SMTP down");
+    });
+});
+
+describe("RequestPasswordResetUseCase", () => {
+    it("returns the same singleton instance", () => {
+        expect(RequestPasswordResetUseCase.getInstance()).toBe(RequestPasswordResetUseCase.getInstance());
+    });
+
+    it("stores the hash of a 1 hour token, cancels older links and emails the raw token", async () => {
+        vi.useFakeTimers();
+        vi.setSystemTime(new Date("2026-01-01T00:00:00.000Z"));
+        users.findOneBy.mockResolvedValueOnce(makeUser({ id: 4, email: "gm@gm-test.test" }));
+
+        await RequestPasswordResetUseCase.getInstance().execute("gm@gm-test.test");
+
+        expect(users.findOneBy).toHaveBeenCalledWith({ email: "gm@gm-test.test" });
+        expect(activationTokens.update).toHaveBeenCalledWith(
+            { userId: 4, purpose: TokenPurpose.PASSWORD_RESET, usedAt: IsNull() },
+            { usedAt: new Date("2026-01-01T00:00:00.000Z") },
+        );
+        const mail = sendMailMock.mock.calls[0]?.[0];
+        const rawToken = new URL(mail.text.match(/http\S+/)[0]).searchParams.get("token") as string;
+        const stored = activationTokens.save.mock.calls[0]?.[0];
+        expect(rawToken).toMatch(/^[0-9a-f]{64}$/);
+        expect(mail.to).toBe("gm@gm-test.test");
+        expect(stored.userId).toBe(4);
+        expect(stored.purpose).toBe(TokenPurpose.PASSWORD_RESET);
+        expect(stored.tokenHash).toBe(TokenHasher.hashToken(rawToken));
+        expect(stored.tokenHash).not.toBe(rawToken);
+        expect(stored.expiresAt).toEqual(new Date("2026-01-01T01:00:00.000Z"));
+    });
+
+    it("does nothing for an unknown email", async () => {
+        await RequestPasswordResetUseCase.getInstance().execute("nobody@gm-test.test");
+
+        expect(activationTokens.update).not.toHaveBeenCalled();
+        expect(activationTokens.save).not.toHaveBeenCalled();
+        expect(sendMailMock).not.toHaveBeenCalled();
+    });
+
+    it("does nothing for an account without password", async () => {
+        users.findOneBy.mockResolvedValueOnce(makeUser({ hashedPassword: null }));
+
+        await RequestPasswordResetUseCase.getInstance().execute("gm@gm-test.test");
+
+        expect(activationTokens.save).not.toHaveBeenCalled();
+        expect(sendMailMock).not.toHaveBeenCalled();
+    });
+
+    it("does nothing for an account that is not active", async () => {
+        users.findOneBy.mockResolvedValueOnce(makeUser({ userStatus: UserStatus.PENDING_ACTIVATION }));
+
+        await RequestPasswordResetUseCase.getInstance().execute("gm@gm-test.test");
+
+        expect(activationTokens.save).not.toHaveBeenCalled();
+        expect(sendMailMock).not.toHaveBeenCalled();
+    });
+
+    it("propagates mailer errors", async () => {
+        users.findOneBy.mockResolvedValueOnce(makeUser());
+        sendMailMock.mockRejectedValueOnce(new Error("SMTP down"));
+
+        await expect(RequestPasswordResetUseCase.getInstance().execute("gm@gm-test.test"))
+            .rejects.toThrow("SMTP down");
+    });
+});
+
+describe("ResetPasswordUseCase", () => {
+    const tokenRow = (overrides = {}) => ({
+        id: "1",
+        userId: 5,
+        tokenHash: TokenHasher.hashToken("raw"),
+        purpose: TokenPurpose.PASSWORD_RESET,
+        usedAt: null,
+        expiresAt: new Date(Date.now() + 60_000),
+        ...overrides,
+    });
+
+    it("returns the same singleton instance", () => {
+        expect(ResetPasswordUseCase.getInstance()).toBe(ResetPasswordUseCase.getInstance());
+    });
+
+    it("sets the new password, consumes the token and revokes the refresh tokens", async () => {
+        const row = tokenRow();
+        const user = makeUser({ id: 5, hashedPassword: "old-hash" });
+        activationTokens.findOneBy.mockResolvedValueOnce(row);
+        users.findOneBy.mockResolvedValueOnce(user);
+
+        const result = await ResetPasswordUseCase.getInstance().execute("raw", "newpass1");
+
+        expect(activationTokens.findOneBy).toHaveBeenCalledWith({ tokenHash: TokenHasher.hashToken("raw"), purpose: TokenPurpose.PASSWORD_RESET });
+        expect(result).toBe(user);
+        await expect(PasswordHasher.verify(result.hashedPassword as string, "newpass1")).resolves.toBe(true);
+        expect(users.save).toHaveBeenCalledWith(user);
+        expect(row.usedAt).toBeInstanceOf(Date);
+        expect(activationTokens.save).toHaveBeenCalledWith(row);
+        expect(refreshTokens.update).toHaveBeenCalledWith(
+            { userId: 5, revokedAt: IsNull() },
+            { revokedAt: expect.any(Date) },
+        );
+    });
+
+    it("rejects an unknown token or a token of another purpose", async () => {
+        await expect(ResetPasswordUseCase.getInstance().execute("raw", "newpass1")).rejects.toThrow("Invalid token");
+        expect(users.save).not.toHaveBeenCalled();
+    });
+
+    it("rejects an already used token", async () => {
+        activationTokens.findOneBy.mockResolvedValueOnce(tokenRow({ usedAt: new Date() }));
+
+        await expect(ResetPasswordUseCase.getInstance().execute("raw", "newpass1")).rejects.toThrow("Already used token");
+        expect(users.save).not.toHaveBeenCalled();
+    });
+
+    it("rejects an expired token", async () => {
+        activationTokens.findOneBy.mockResolvedValueOnce(tokenRow({ expiresAt: new Date(Date.now() - 1000) }));
+
+        await expect(ResetPasswordUseCase.getInstance().execute("raw", "newpass1")).rejects.toThrow("Token is expired");
+        expect(users.save).not.toHaveBeenCalled();
+    });
+
+    it("rejects a token whose user no longer exists", async () => {
+        activationTokens.findOneBy.mockResolvedValueOnce(tokenRow());
+
+        await expect(ResetPasswordUseCase.getInstance().execute("raw", "newpass1")).rejects.toThrow("User not found");
+    });
+
+    it("requires 12 characters for elevated accounts and keeps the token usable", async () => {
+        const row = tokenRow();
+        activationTokens.findOneBy.mockResolvedValueOnce(row);
+        users.findOneBy.mockResolvedValueOnce(makeUser({ id: 5, role: Role.ADMIN }));
+
+        await expect(ResetPasswordUseCase.getInstance().execute("raw", "short-pass1")).rejects.toThrow("Password must be at least 12 characters");
+        expect(users.save).not.toHaveBeenCalled();
+        expect(row.usedAt).toBeNull();
+        expect(refreshTokens.update).not.toHaveBeenCalled();
+    });
+
+    it("accepts 12 characters for elevated accounts", async () => {
+        activationTokens.findOneBy.mockResolvedValueOnce(tokenRow());
+        users.findOneBy.mockResolvedValueOnce(makeUser({ id: 5, role: Role.SOUND_CREATOR }));
+
+        const result = await ResetPasswordUseCase.getInstance().execute("raw", "twelve-chars");
+
+        await expect(PasswordHasher.verify(result.hashedPassword as string, "twelve-chars")).resolves.toBe(true);
     });
 });

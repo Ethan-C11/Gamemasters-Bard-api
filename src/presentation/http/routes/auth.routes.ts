@@ -5,15 +5,17 @@ import {SignInUseCase} from "../../../application/useCases/auth/SignInUseCase.js
     import {
     ActivateBody,
     ActivateResponse,
-    AuthResponse, RefreshBody,
+    AuthResponse, ForgotPasswordBody, RefreshBody, ResetPasswordBody,
     SignInBody,
     SignUpBody
 } from "../../../application/dtos/auth.schema.js";
-    import {ErrorResponse} from "../../../application/dtos/shared.schema.js";
+    import {ErrorResponse, MessageResponse} from "../../../application/dtos/shared.schema.js";
     import {AccountActivationUseCase} from "../../../application/useCases/user/AccountActivationUseCase.js";
     import {User} from "../../../infrastructure/db/entities/user.entity.js";
     import {RefreshAccessTokenUseCase} from "../../../application/useCases/auth/RefreshAccessTokenUseCase.js";
     import {IssueRefreshTokenUseCase} from "../../../application/useCases/auth/IssueRefreshTokenUseCase.js";
+    import {RequestPasswordResetUseCase} from "../../../application/useCases/auth/RequestPasswordResetUseCase.js";
+    import {ResetPasswordUseCase} from "../../../application/useCases/auth/ResetPasswordUseCase.js";
 
 export async function authRoutes(app: FastifyInstance) {
 
@@ -125,6 +127,44 @@ export async function authRoutes(app: FastifyInstance) {
             return reply.status(200).send({ token, user: { id: user.id, email: user.email, username: user.username } });
         } catch (err: any) {
             return reply.status(401).send({ error: (err as Error).message });
+        }
+    });
+
+    app.post('/forgot-password', {
+        config: { rateLimit: { max: 5, timeWindow: "1 minute" } },
+        schema: {
+            tags: ["Auth"],
+            summary: "Send a password reset link by email",
+            body: ForgotPasswordBody,
+            response: {
+                200: MessageResponse,
+            },
+        }
+    }, async (request, reply) => {
+        const { email } = request.body as { email: string };
+
+        RequestPasswordResetUseCase.getInstance().execute(email).catch((err) => app.log.error(err));
+
+        return reply.status(200).send({ message: "If an account exists for this email, a reset link has been sent" });
+    });
+
+    app.post('/reset-password', {
+        schema: {
+            tags: ["Auth"],
+            summary: "Choose a new password with a reset token",
+            body: ResetPasswordBody,
+            response: {
+                200: MessageResponse,
+                400: ErrorResponse,
+            },
+        }
+    }, async (request, reply) => {
+        const { token, password } = request.body as { token: string; password: string };
+        try {
+            await ResetPasswordUseCase.getInstance().execute(token, password);
+            return reply.status(200).send({ message: "Password updated" });
+        } catch (err) {
+            return reply.status(400).send({ error: (err as Error).message });
         }
     });
 }
