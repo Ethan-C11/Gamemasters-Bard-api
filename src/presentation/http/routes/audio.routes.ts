@@ -15,6 +15,8 @@ import {authorize} from "../hooks/authorize.js";
 import {Role} from "../../../shared/enums/Role.js";
 import DrawSessionSoundsUseCase from "../../../application/useCases/audio/DrawSessionSoundsUseCase.js";
 import ListAudioTracksUseCase from "../../../application/useCases/audio/ListAudioTracksUseCase.js";
+import {GetSessionStateUseCase} from "../../../application/useCases/session/GetSessionStateUseCase.js";
+import {emitSessionState} from "../../websocket/session.events.js";
 
 interface ImportAudioMultipartBody {
     name?: { value?: string };
@@ -73,6 +75,10 @@ export const audioRoutes: FastifyPluginAsyncTypebox = async (app) => {
 
         try {
             const soundTrack = await DrawSessionSoundsUseCase.getInstance().execute(request.user.id, sessionId, zone, ambiance);
+
+            GetSessionStateUseCase.getInstance().execute(sessionId, request.user.id)
+                .then((session) => emitSessionState(app.realtime, session))
+                .catch((err) => app.log.error(err));
 
             return reply.status(200).send(soundTrack);
         } catch (err) {

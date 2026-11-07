@@ -41,5 +41,7 @@ export const SessionStateResponse = Type.Object({
     zone: Type.Union([Type.String(), Type.Null()]),
     ambiance: Type.Union([Type.String(), Type.Null()]),
     startedAt: Type.Union([Type.String(), Type.Null()]),
+    status: Type.String(),
+    positionMs: Type.Number(),
 });
 export type SessionStateResponse = Static<typeof SessionStateResponse>;

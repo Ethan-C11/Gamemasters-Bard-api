@@ -8,6 +8,7 @@ import {DrawSessionSoundsResponse} from "../../dtos/soundTrack.schema.js";
 import {User} from "../../../infrastructure/db/entities/user.entity.js";
 import {Session} from "../../../infrastructure/db/entities/session.entity.js";
 import {toAudioTrackDto} from "../../mappers/audio.mappers.js";
+import {PlaybackStatus} from "../../../shared/enums/PlaybackStatus.js";
 
 type PickedSound = { sound: AudioTrack | null; history: number[] };
 
@@ -61,6 +62,8 @@ class DrawSessionSoundsUseCase {
         session.currentZone = zone ?? null;
         session.currentAmbiance = ambiance ?? null;
         session.playbackStartedAt = new Date();
+        session.playbackStatus = PlaybackStatus.PLAYING;
+        session.playbackPositionMs = 0;
         await this._sessionRepository.save(session);
 
         return {

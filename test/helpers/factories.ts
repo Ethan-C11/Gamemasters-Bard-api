@@ -6,6 +6,7 @@ import { UserStatus } from "../../src/shared/enums/UserStatus.js";
 import { SoundType } from "../../src/shared/enums/SoundType.js";
 import { Zone } from "../../src/shared/enums/Zone.js";
 import { Ambiance } from "../../src/shared/enums/Ambiance.js";
+import { PlaybackStatus } from "../../src/shared/enums/PlaybackStatus.js";
 
 export function makeUser(overrides: Partial<User> = {}): User {
     return Object.assign(new User(), {
@@ -37,6 +38,8 @@ export function makeSession(overrides: Partial<Session> = {}): Session {
         currentZone: null,
         currentAmbiance: null,
         playbackStartedAt: null,
+        playbackStatus: PlaybackStatus.STOPPED,
+        playbackPositionMs: 0,
         ...overrides,
     });
 }

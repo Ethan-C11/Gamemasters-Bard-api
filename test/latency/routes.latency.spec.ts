@@ -1,6 +1,7 @@
 import { describe, expect, it, beforeAll, afterAll } from "vitest";
 import { ApiClient, audioForm, signUpAndSignIn, startTestServer, type TestServer } from "../helpers/http.js";
 import { measure, printLatencyReport } from "../helpers/latency.js";
+import { connectSocket, emitWithAck } from "../helpers/socket.js";
 import { AppDataSource } from "../../src/infrastructure/db/AppDataSource.js";
 import { AudioTrack } from "../../src/infrastructure/db/entities/audioTrack.entity.js";
 import { SoundType } from "../../src/shared/enums/SoundType.js";
@@ -131,6 +132,30 @@ describe("route latency (p95)", () => {
             const res = await user.client.request("GET", `/session/${sessionId}/state`);
             expect(res.status).toBe(200);
         });
+
+        expect(stats.p95).toBeLessThan(stats.budgetP95);
+    });
+
+    it("socket session:join", async () => {
+        const socket = await connectSocket(server.baseUrl, user.client.token);
+        const stats = await measure("socket session:join", 150, async () => {
+            const ack = await emitWithAck(socket, "session:join", { sessionId });
+            expect(ack.ok).toBe(true);
+        });
+        socket.close();
+
+        expect(stats.p95).toBeLessThan(stats.budgetP95);
+    });
+
+    it("socket playback:command", async () => {
+        await user.client.post("/audio/resolve", { sessionId, zone: "forest" });
+        const socket = await connectSocket(server.baseUrl, user.client.token);
+        const actions = ["pause", "play"];
+        const stats = await measure("socket playback:command", 150, async (iteration) => {
+            const ack = await emitWithAck(socket, "playback:command", { sessionId, action: actions[Math.abs(iteration) % 2] });
+            expect(ack.ok).toBe(true);
+        });
+        socket.close();
 
         expect(stats.p95).toBeLessThan(stats.budgetP95);
     });
