@@ -19,5 +19,7 @@ export function toSessionStateDto(session: Session) {
         zone: session.currentZone,
         ambiance: session.currentAmbiance,
         startedAt: session.playbackStartedAt ? session.playbackStartedAt.toISOString() : null,
+        status: session.playbackStatus,
+        positionMs: session.playbackPositionMs,
     };
 }

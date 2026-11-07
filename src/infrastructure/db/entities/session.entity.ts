@@ -3,6 +3,7 @@ import {User} from "./user.entity.js";
 import {AudioTrack} from "./audioTrack.entity.js";
 import {Zone} from "../../../shared/enums/Zone.js";
 import {Ambiance} from "../../../shared/enums/Ambiance.js";
+import {PlaybackStatus} from "../../../shared/enums/PlaybackStatus.js";
 
 @Entity()
 export class Session {
@@ -45,4 +46,10 @@ export class Session {
 
     @Column({ type: 'timestamp', nullable: true })
     playbackStartedAt: Date | null;
+
+    @Column({ type: 'enum', enum: PlaybackStatus, default: PlaybackStatus.STOPPED })
+    playbackStatus: PlaybackStatus;
+
+    @Column({ type: 'int', default: 0 })
+    playbackPositionMs: number;
 }
