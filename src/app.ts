@@ -9,6 +9,7 @@ import {authRoutes} from "./presentation/http/routes/auth.routes.js";
 import {sessionRoutes} from "./presentation/http/routes/session.routes.js";
 import {userRoutes} from "./presentation/http/routes/user.routes.js";
 import {audioRoutes} from "./presentation/http/routes/audio.routes.js";
+import {healthRoutes} from "./presentation/http/routes/health.routes.js";
 import {registerSocket} from "./presentation/websocket/socket.plugin.js";
 
 export interface BuildAppOptions {
@@ -49,6 +50,7 @@ export async function buildApp(options: BuildAppOptions = {}) {
         });
     }
 
+    await app.register(healthRoutes);
     await app.register(authRoutes, { prefix: "/auth" });
     await app.register(sessionRoutes, { prefix: "/session" });
     await app.register(userRoutes, { prefix: "/user" });
