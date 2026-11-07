@@ -48,6 +48,17 @@ describe("MinioStorageService", () => {
         expect(client.makeBucket).not.toHaveBeenCalled();
     });
 
+    it("pings the bucket and fails when it does not exist", async () => {
+        client.bucketExists.mockResolvedValueOnce(true);
+        await expect(storage.ping()).resolves.toBeUndefined();
+
+        client.bucketExists.mockResolvedValueOnce(false);
+        await expect(storage.ping()).rejects.toThrow("Bucket does not exist");
+
+        client.bucketExists.mockRejectedValueOnce(new Error("connect ECONNREFUSED"));
+        await expect(storage.ping()).rejects.toThrow("connect ECONNREFUSED");
+    });
+
     it("uploads with the content type", async () => {
         const body = Buffer.from("data");
 

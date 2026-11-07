@@ -2,6 +2,7 @@ import { vi, type Mock } from "vitest";
 
 export interface MockStorage {
     ensureBucketExists: Mock;
+    ping: Mock;
     upload: Mock;
     download: Mock;
     getSignedUrl: Mock;
@@ -11,6 +12,7 @@ export interface MockStorage {
 
 export const storageMock: MockStorage = {
     ensureBucketExists: vi.fn(async () => undefined),
+    ping: vi.fn(async () => undefined),
     upload: vi.fn(async () => undefined),
     download: vi.fn(),
     getSignedUrl: vi.fn(async () => "http://signed.test"),

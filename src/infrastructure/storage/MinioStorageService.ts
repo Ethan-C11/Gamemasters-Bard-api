@@ -37,6 +37,13 @@ export class MinioStorageService {
         }
     }
 
+    async ping(): Promise<void> {
+        const exists = await this.client.bucketExists(this.bucket);
+        if (!exists) {
+            throw new Error("Bucket does not exist");
+        }
+    }
+
     async upload(key: string, body: Buffer | Readable, size: number, contentType: string): Promise<void> {
         await this.client.putObject(this.bucket, key, body, size, {
             "Content-Type":  contentType,

@@ -42,6 +42,15 @@ afterAll(async () => {
 });
 
 describe("route latency (p95)", () => {
+    it("GET /health", async () => {
+        const stats = await measure("GET /health", 150, async () => {
+            const res = await api.request("GET", "/health");
+            expect(res.status).toBe(200);
+        });
+
+        expect(stats.p95).toBeLessThan(stats.budgetP95);
+    });
+
     it("POST /auth/signin", async () => {
         const stats = await measure("POST /auth/signin", 400, async () => {
             const res = await api.post("/auth/signin", { email: user.email, password });
