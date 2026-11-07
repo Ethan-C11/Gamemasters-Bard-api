@@ -6,7 +6,7 @@ applyTestEnv();
 
 vi.mock("../../src/infrastructure/db/AppDataSource.js", async () => {
     const { repositoryFor } = await import("../helpers/mockRepository.js");
-    return { AppDataSource: { getRepository: (entity: unknown) => repositoryFor(entity) } };
+    return { AppDataSource: { getRepository: (entity: unknown) => repositoryFor(entity), query: vi.fn(async () => [{ "?column?": 1 }]) } };
 });
 
 vi.mock("../../src/infrastructure/storage/MinioStorageService.js", async () => {
