@@ -212,3 +212,58 @@ describe("realtime session", () => {
         await expect(connectSocket(server.baseUrl, "forged.token.value")).rejects.toThrow("Unauthorized");
     });
 });
+
+describe("sound deletion", () => {
+    it("lets the uploader delete a private sound, frees the quota and keeps the other sounds", async () => {
+        const owner = await signUpAndSignIn(api, "del-owner");
+        const other = await signUpAndSignIn(api, "del-other");
+        const forestCalm = { zone: "forest", ambiance: "calm" };
+
+        const mine = await owner.client.post("/audio/upload", audioForm({ name: "Mine", type: "music", ...forestCalm, isUserImported: true }));
+        const theirs = await other.client.post("/audio/upload", audioForm({ name: "Theirs", type: "music", ...forestCalm, isUserImported: true }));
+        const shared = await owner.client.post("/audio/upload", audioForm({ name: "Shared", type: "music", ...forestCalm, isUserImported: false }));
+        expect([mine.status, theirs.status, shared.status]).toEqual([200, 200, 200]);
+        const storage = MinioStorageService.getInstance();
+
+        const byStranger = await other.client.delete(`/audio?key=${encodeURIComponent(mine.body.key)}`);
+        expect(byStranger.status).toBe(400);
+        expect(byStranger.body.error).toBe("You can only delete your own sounds");
+        const publicByUploader = await owner.client.delete(`/audio?key=${encodeURIComponent(shared.body.key)}`);
+        expect(publicByUploader.status).toBe(400);
+        expect((await owner.client.delete(`/audio?key=${encodeURIComponent("sounds/9999/ghost.mp3")}`)).body.error).toBe("Sound does not exist");
+        expect((await owner.client.request("DELETE", "/audio")).status).toBe(400);
+        expect((await api.request("DELETE", `/audio?key=${encodeURIComponent(mine.body.key)}`)).status).toBe(401);
+        expect(await storage.listByPrefix("sounds/")).toContain(mine.body.key);
+
+        const deleted = await owner.client.delete(`/audio?key=${encodeURIComponent(mine.body.key)}`);
+        expect(deleted.status).toBe(200);
+        expect(deleted.body).toEqual(mine.body);
+
+        const remaining = await storage.listByPrefix("sounds/");
+        expect(remaining).not.toContain(mine.body.key);
+        expect(remaining).toEqual(expect.arrayContaining([theirs.body.key, shared.body.key]));
+        expect(await AppDataSource.getRepository(AudioTrack).countBy({ storageKey: mine.body.key })).toBe(0);
+        const listed = await owner.client.post("/audio/list", { isUserImported: true });
+        expect(listed.body.data.map((s: { key: string }) => s.key)).not.toContain(mine.body.key);
+        expect((await owner.client.delete(`/audio?key=${encodeURIComponent(mine.body.key)}`)).status).toBe(400);
+
+        const again = await owner.client.post("/audio/upload", audioForm({ name: "Mine again", type: "music", ...forestCalm, isUserImported: true }, mine.body.key.split("/")[2]));
+        expect(again.status).toBe(200);
+    });
+
+    it("clears the current sound of a session when its file is deleted", async () => {
+        const host = await signUpAndSignIn(api, "del-host");
+        const volcanicCalm = { zone: "volcanic", ambiance: "calm", isUserImported: true };
+        const music = await host.client.post("/audio/upload", audioForm({ name: "Playing", type: "music", ...volcanicCalm }));
+        const session = await host.client.post("/session", { sessionName: "Deletion" });
+        const draw = await host.client.post("/audio/resolve", { sessionId: session.body.id, zone: "volcanic", ambiance: "calm" });
+        expect(draw.status).toBe(200);
+        expect(draw.body.music.key).toBe(music.body.key);
+
+        expect((await host.client.delete(`/audio?key=${encodeURIComponent(music.body.key)}`)).status).toBe(200);
+
+        const state = await host.client.request("GET", `/session/${session.body.id}/state`);
+        expect(state.status).toBe(200);
+        expect(state.body).toMatchObject({ music: null, zone: "volcanic", status: "playing" });
+    });
+});

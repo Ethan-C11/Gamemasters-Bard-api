@@ -8,13 +8,14 @@ import ImportAudioUseCase from "../../../application/useCases/audio/ImportAudioU
 import {
     ImportAudioTrackBody,
     AudioTrackResponse,
-    DrawSessionSoundsBody, DrawSessionSoundsResponse, ListAudioTracksBody, PaginatedAudioTrackResponse
+    DrawSessionSoundsBody, DrawSessionSoundsResponse, ListAudioTracksBody, PaginatedAudioTrackResponse, DeleteAudioTrackQuery
 } from "../../../application/dtos/soundTrack.schema.js";
 import {authenticate} from "../hooks/authenticate.js";
 import {authorize} from "../hooks/authorize.js";
 import {Role} from "../../../shared/enums/Role.js";
 import DrawSessionSoundsUseCase from "../../../application/useCases/audio/DrawSessionSoundsUseCase.js";
 import ListAudioTracksUseCase from "../../../application/useCases/audio/ListAudioTracksUseCase.js";
+import DeleteAudioTrackUseCase from "../../../application/useCases/audio/DeleteAudioTrackUseCase.js";
 import {GetSessionStateUseCase} from "../../../application/useCases/session/GetSessionStateUseCase.js";
 import {emitSessionState} from "../../websocket/session.events.js";
 
@@ -117,5 +118,26 @@ export const audioRoutes: FastifyPluginAsyncTypebox = async (app) => {
         }
     });
 
+    app.delete("/", {
+        preHandler: [authenticate, authorize(Role.USER, Role.ADMIN, Role.SOUND_CREATOR)],
+        schema: {
+            tags: ["Soundtrack"],
+            summary: "Delete a sound the user uploaded (identified by its key)",
+            querystring: DeleteAudioTrackQuery,
+            response: {
+                200: AudioTrackResponse,
+                400: ErrorResponse,
+            },
+        },
+    }, async (request, reply) => {
+        const { key } = request.query;
 
+        try {
+            const deleted = await DeleteAudioTrackUseCase.getInstance().execute(request.user.id, key);
+
+            return reply.status(200).send(deleted);
+        } catch (err) {
+            return reply.status(400).send({ error: (err as Error).message });
+        }
+    });
 }

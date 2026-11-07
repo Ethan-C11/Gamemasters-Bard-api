@@ -7,6 +7,11 @@ import {Ambiance} from "../../shared/enums/Ambiance.js";
 export const ImportAudioTrackBody = Type.Any();
 export type ImportAudioTrackBody = Static<typeof ImportAudioTrackBody>;
 
+export const DeleteAudioTrackQuery = Type.Object({
+        key: Type.String({ minLength: 1 }),
+});
+export type DeleteAudioTrackQuery = Static<typeof DeleteAudioTrackQuery>;
+
 export const DrawSessionSoundsBody = Type.Object({
         sessionId: Type.Number(),
         zone: Type.Optional(Type.Enum(Zone)),

@@ -3,6 +3,7 @@ import { bearer, createTestApp, tokenFor } from "../helpers/app.js";
 import type { App } from "../../src/app.js";
 import ImportAudioUseCase from "../../src/application/useCases/audio/ImportAudioUseCase.js";
 import ListAudioTracksUseCase from "../../src/application/useCases/audio/ListAudioTracksUseCase.js";
+import DeleteAudioTrackUseCase from "../../src/application/useCases/audio/DeleteAudioTrackUseCase.js";
 import DrawSessionSoundsUseCase from "../../src/application/useCases/audio/DrawSessionSoundsUseCase.js";
 import { Role } from "../../src/shared/enums/Role.js";
 
@@ -141,5 +142,41 @@ describe("POST /audio/list", () => {
         const res = await app.inject({ method: "POST", url: "/audio/list", headers: bearer(token), payload: { type: "zone" } });
 
         expect(res.statusCode).toBe(400);
+    });
+});
+
+describe("DELETE /audio", () => {
+    it("deletes the sound identified by its key", async () => {
+        const spy = vi.spyOn(DeleteAudioTrackUseCase.getInstance(), "execute").mockResolvedValueOnce(track);
+
+        const res = await app.inject({ method: "DELETE", url: "/audio?key=sounds/1/mine.mp3", headers: bearer(token) });
+
+        expect(res.statusCode).toBe(200);
+        expect(res.json()).toEqual(track);
+        expect(spy).toHaveBeenCalledWith(1, "sounds/1/mine.mp3");
+    });
+
+    it("answers 400 with the use case error", async () => {
+        vi.spyOn(DeleteAudioTrackUseCase.getInstance(), "execute").mockRejectedValueOnce(new Error("You can only delete your own sounds"));
+
+        const res = await app.inject({ method: "DELETE", url: "/audio?key=sounds/2/other.mp3", headers: bearer(token) });
+
+        expect(res.statusCode).toBe(400);
+        expect(res.json()).toEqual({ error: "You can only delete your own sounds" });
+    });
+
+    it("requires a key", async () => {
+        const spy = vi.spyOn(DeleteAudioTrackUseCase.getInstance(), "execute");
+
+        const res = await app.inject({ method: "DELETE", url: "/audio", headers: bearer(token) });
+
+        expect(res.statusCode).toBe(400);
+        expect(spy).not.toHaveBeenCalled();
+    });
+
+    it("requires authentication", async () => {
+        const res = await app.inject({ method: "DELETE", url: "/audio?key=sounds/1/mine.mp3" });
+
+        expect(res.statusCode).toBe(401);
     });
 });
