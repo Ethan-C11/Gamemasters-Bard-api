@@ -1,8 +1,10 @@
-import { describe, expect, it, beforeAll, afterAll } from "vitest";
+import { describe, expect, it, beforeAll, afterAll, afterEach } from "vitest";
+import type { Socket } from "socket.io-client";
 import { ApiClient, audioForm, signUpAndSignIn, startTestServer, type TestServer } from "../helpers/http.js";
 import { AppDataSource } from "../../src/infrastructure/db/AppDataSource.js";
 import { Session } from "../../src/infrastructure/db/entities/session.entity.js";
 import { AudioTrack } from "../../src/infrastructure/db/entities/audioTrack.entity.js";
+import { connectSocket, emitWithAck, expectNoEvent, waitForEvent } from "../helpers/socket.js";
 import { MinioStorageService } from "../../src/infrastructure/storage/MinioStorageService.js";
 
 let server: TestServer;
@@ -111,7 +113,7 @@ describe("session state", () => {
 
         const empty = await host.client.request("GET", url);
         expect(empty.status).toBe(200);
-        expect(empty.body).toEqual({ music: null, environment: null, zone: null, ambiance: null, startedAt: null });
+        expect(empty.body).toEqual({ music: null, environment: null, zone: null, ambiance: null, startedAt: null, status: "stopped", positionMs: 0 });
 
         const draw = await host.client.post("/audio/resolve", { sessionId: session.body.id, zone: "forest", ambiance: "calm" });
         expect(draw.status).toBe(200);
@@ -119,7 +121,7 @@ describe("session state", () => {
         const asOwner = await host.client.request("GET", url);
         const asMember = await player.client.request("GET", url);
         expect(asOwner.status).toBe(200);
-        expect(asOwner.body).toMatchObject({ music: draw.body.music, environment: draw.body.environment, zone: "forest", ambiance: "calm" });
+        expect(asOwner.body).toMatchObject({ music: draw.body.music, environment: draw.body.environment, zone: "forest", ambiance: "calm", status: "playing", positionMs: 0 });
         expect(new Date(asOwner.body.startedAt).getTime()).toBeLessThanOrEqual(Date.now());
         expect(asMember.body).toEqual(asOwner.body);
 
@@ -132,5 +134,81 @@ describe("session state", () => {
         expect(afterDelete.status).toBe(200);
         expect(afterDelete.body.music).toBeNull();
         expect(afterDelete.body.environment).toEqual(draw.body.environment);
+    });
+});
+
+describe("realtime session", () => {
+    const sockets: Socket[] = [];
+
+    async function connect(token?: string): Promise<Socket> {
+        const socket = await connectSocket(server.baseUrl, token);
+        sockets.push(socket);
+        return socket;
+    }
+
+    afterEach(() => {
+        while (sockets.length) sockets.pop()?.close();
+    });
+
+    it("keeps the owner and the members in sync and lets a reconnecting client resume", async () => {
+        const host = await signUpAndSignIn(api, "rt-host");
+        const player = await signUpAndSignIn(api, "rt-player");
+        const stranger = await signUpAndSignIn(api, "rt-stranger");
+        const forestCalm = { zone: "forest", ambiance: "calm", isUserImported: true };
+        await host.client.post("/audio/upload", audioForm({ name: "Realtime music", type: "music", ...forestCalm }));
+        const session = await host.client.post("/session", { sessionName: "Realtime" });
+        await player.client.post("/session/join", { inviteCode: session.body.inviteCode });
+        const target = { sessionId: session.body.id };
+
+        const hostSocket = await connect(host.client.token);
+        const playerSocket = await connect(player.client.token);
+        const strangerSocket = await connect(stranger.client.token);
+
+        const hostJoin = await emitWithAck(hostSocket, "session:join", target);
+        expect(hostJoin).toEqual({ ok: true, state: expect.objectContaining({ music: null, status: "stopped", positionMs: 0 }) });
+        expect((await emitWithAck(playerSocket, "session:join", target)).ok).toBe(true);
+        expect(await emitWithAck(strangerSocket, "session:join", target)).toEqual({ ok: false, error: "User is not a member of this session" });
+        expect(await emitWithAck(hostSocket, "session:join", { sessionId: session.body.id + 1000 })).toEqual({ ok: false, error: "Session does not exist" });
+
+        expect(await emitWithAck(hostSocket, "playback:command", { ...target, action: "play" })).toEqual({ ok: false, error: "Nothing to play" });
+
+        const drawnForHost = waitForEvent(hostSocket, "session:state");
+        const drawnForPlayer = waitForEvent(playerSocket, "session:state");
+        const draw = await host.client.post("/audio/resolve", { ...target, zone: "forest", ambiance: "calm" });
+        expect(draw.status).toBe(200);
+        const drawn = await drawnForPlayer;
+        expect(await drawnForHost).toEqual(drawn);
+        expect(drawn.sessionId).toBe(session.body.id);
+        expect(drawn.state).toMatchObject({ music: draw.body.music, status: "playing", positionMs: 0, zone: "forest" });
+        await expectNoEvent(strangerSocket, "session:state");
+
+        const denied = await emitWithAck(playerSocket, "playback:command", { ...target, action: "pause" });
+        expect(denied).toEqual({ ok: false, error: "User is not the owner of the session" });
+
+        const paused = waitForEvent(playerSocket, "session:state");
+        expect(await emitWithAck(hostSocket, "playback:command", { ...target, action: "pause" })).toEqual({ ok: true });
+        const pausedState = (await paused).state;
+        expect(pausedState).toMatchObject({ status: "paused", startedAt: null });
+        expect(pausedState.positionMs).toBeGreaterThanOrEqual(0);
+
+        const resumed = waitForEvent(playerSocket, "session:state");
+        await emitWithAck(hostSocket, "playback:command", { ...target, action: "play" });
+        expect((await resumed).state).toMatchObject({ status: "playing", positionMs: pausedState.positionMs });
+
+        playerSocket.close();
+        const reconnected = await connect(player.client.token);
+        const resume = await emitWithAck(reconnected, "session:join", target);
+        expect(resume.state).toMatchObject({ status: "playing", music: draw.body.music, positionMs: pausedState.positionMs });
+        expect(resume.state).toEqual((await player.client.request("GET", `/session/${session.body.id}/state`)).body);
+
+        const stopped = waitForEvent(reconnected, "session:state");
+        await emitWithAck(hostSocket, "playback:command", { ...target, action: "stop" });
+        expect((await stopped).state).toMatchObject({ status: "stopped", positionMs: 0, startedAt: null });
+        expect((await host.client.request("GET", `/session/${session.body.id}/state`)).body).toMatchObject({ status: "stopped", positionMs: 0 });
+    });
+
+    it("refuses a socket without a valid access token", async () => {
+        await expect(connectSocket(server.baseUrl)).rejects.toThrow("Unauthorized");
+        await expect(connectSocket(server.baseUrl, "forged.token.value")).rejects.toThrow("Unauthorized");
     });
 });

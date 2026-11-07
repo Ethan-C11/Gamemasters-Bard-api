@@ -182,6 +182,8 @@ describe("GET /session/:id/state", () => {
             zone: Zone.FOREST,
             ambiance: Ambiance.CALM,
             startedAt: "2026-01-01T00:00:00.000Z",
+            status: "stopped",
+            positionMs: 0,
         });
         expect(execute).toHaveBeenCalledWith(10, 2);
     });

@@ -277,10 +277,12 @@ describe("toSessionStateDto", () => {
             zone: Zone.FOREST,
             ambiance: Ambiance.CALM,
             startedAt: "2026-01-01T00:00:00.000Z",
+            status: "stopped",
+            positionMs: 0,
         });
     });
 
     it("returns an empty state for a session that never played anything", () => {
-        expect(toSessionStateDto(makeSession())).toEqual({ music: null, environment: null, zone: null, ambiance: null, startedAt: null });
+        expect(toSessionStateDto(makeSession())).toEqual({ music: null, environment: null, zone: null, ambiance: null, startedAt: null, status: "stopped", positionMs: 0 });
     });
 });

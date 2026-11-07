@@ -11,6 +11,7 @@ import ImportAudioUseCase from "../../../src/application/useCases/audio/ImportAu
 import ListAudioTracksUseCase from "../../../src/application/useCases/audio/ListAudioTracksUseCase.js";
 import DrawSessionSoundsUseCase from "../../../src/application/useCases/audio/DrawSessionSoundsUseCase.js";
 import { SoundType } from "../../../src/shared/enums/SoundType.js";
+import { PlaybackStatus } from "../../../src/shared/enums/PlaybackStatus.js";
 import { Zone } from "../../../src/shared/enums/Zone.js";
 import { Ambiance } from "../../../src/shared/enums/Ambiance.js";
 
@@ -229,6 +230,8 @@ describe("DrawSessionSoundsUseCase", () => {
         expect(session.currentZone).toBe(Zone.FOREST);
         expect(session.currentAmbiance).toBe(Ambiance.CALM);
         expect(session.playbackStartedAt).toEqual(new Date("2026-01-01T00:00:00.000Z"));
+        expect(session.playbackStatus).toBe(PlaybackStatus.PLAYING);
+        expect(session.playbackPositionMs).toBe(0);
     });
 
     it("replaces the previous state, clearing the filter and the type that was not drawn", async () => {
