@@ -61,6 +61,16 @@ describe("route latency (p95)", () => {
         expect(stats.p95).toBeLessThan(stats.budgetP95);
     });
 
+    it("POST /auth/logout", async () => {
+        const { refreshToken } = await signUpAndSignIn(api, "latency-logout", password);
+        const stats = await measure("POST /auth/logout", 150, async () => {
+            const res = await api.post("/auth/logout", { refreshToken });
+            expect(res.status).toBe(200);
+        });
+
+        expect(stats.p95).toBeLessThan(stats.budgetP95);
+    });
+
     it("POST /auth/forgot-password", async () => {
         const stats = await measure("POST /auth/forgot-password", 150, async () => {
             const res = await api.post("/auth/forgot-password", { email: user.email });
