@@ -1,13 +1,16 @@
 import { describe, expect, it } from "vitest";
 import { repositoryFor } from "../../helpers/mockRepository.js";
-import { makeSession, makeUser } from "../../helpers/factories.js";
+import { makeSession, makeTrack, makeUser } from "../../helpers/factories.js";
+import { Zone } from "../../../src/shared/enums/Zone.js";
+import { Ambiance } from "../../../src/shared/enums/Ambiance.js";
 import { User } from "../../../src/infrastructure/db/entities/user.entity.js";
 import { Session } from "../../../src/infrastructure/db/entities/session.entity.js";
 import { CreateSessionUseCase } from "../../../src/application/useCases/session/CreateSessionUseCase.js";
 import { DeleteSessionUseCase } from "../../../src/application/useCases/session/DeleteSessionUseCase.js";
 import { JoinSessionUseCase } from "../../../src/application/useCases/session/JoinSessionUseCase.js";
 import { QuitSessionUseCase } from "../../../src/application/useCases/session/QuitSessionUseCase.js";
-import { toSessionDto } from "../../../src/application/mappers/session.mappers.js";
+import { GetSessionStateUseCase } from "../../../src/application/useCases/session/GetSessionStateUseCase.js";
+import { toSessionDto, toSessionStateDto } from "../../../src/application/mappers/session.mappers.js";
 
 const users = repositoryFor(User);
 const sessions = repositoryFor(Session);
@@ -211,5 +214,73 @@ describe("toSessionDto", () => {
 
     it("returns an empty member list when members are not loaded", () => {
         expect(toSessionDto(makeSession({ sessionMembers: undefined as never })).sessionMembers).toEqual([]);
+    });
+});
+
+describe("GetSessionStateUseCase", () => {
+    it("returns the same singleton instance", () => {
+        expect(GetSessionStateUseCase.getInstance()).toBe(GetSessionStateUseCase.getInstance());
+    });
+
+    it("loads the session with its owner, members and current sounds", async () => {
+        const session = makeSession();
+        sessions.findOne.mockResolvedValueOnce(session);
+
+        const result = await GetSessionStateUseCase.getInstance().execute(10, 1);
+
+        expect(result).toBe(session);
+        expect(sessions.findOne).toHaveBeenCalledWith({
+            where: { id: 10 },
+            relations: { owner: true, sessionMembers: true, currentMusic: true, currentEnvironment: true },
+        });
+    });
+
+    it("lets a member read the state", async () => {
+        const owner = makeUser();
+        const player = makeUser({ id: 2 });
+        sessions.findOne.mockResolvedValueOnce(makeSession({ owner, sessionMembers: [owner, player] }));
+
+        await expect(GetSessionStateUseCase.getInstance().execute(10, 2)).resolves.toBeDefined();
+    });
+
+    it("refuses a user who is not in the session", async () => {
+        sessions.findOne.mockResolvedValueOnce(makeSession());
+
+        await expect(GetSessionStateUseCase.getInstance().execute(10, 3)).rejects.toThrow("User is not a member of this session");
+    });
+
+    it("refuses a session that does not exist", async () => {
+        await expect(GetSessionStateUseCase.getInstance().execute(10, 1)).rejects.toThrow("Session does not exist");
+    });
+
+    it("refuses a user when the members are not loaded", async () => {
+        sessions.findOne.mockResolvedValueOnce(makeSession({ sessionMembers: undefined as never }));
+
+        await expect(GetSessionStateUseCase.getInstance().execute(10, 3)).rejects.toThrow("User is not a member of this session");
+    });
+});
+
+describe("toSessionStateDto", () => {
+    it("maps the current sounds, filters and start date", () => {
+        const music = makeTrack({ id: 1 });
+        const state = toSessionStateDto(makeSession({
+            currentMusic: music,
+            currentEnvironment: null,
+            currentZone: Zone.FOREST,
+            currentAmbiance: Ambiance.CALM,
+            playbackStartedAt: new Date("2026-01-01T00:00:00.000Z"),
+        }));
+
+        expect(state).toEqual({
+            music: { key: music.storageKey, name: music.name, type: music.type, zone: music.zone, ambiance: music.ambiance, isUserImported: false },
+            environment: null,
+            zone: Zone.FOREST,
+            ambiance: Ambiance.CALM,
+            startedAt: "2026-01-01T00:00:00.000Z",
+        });
+    });
+
+    it("returns an empty state for a session that never played anything", () => {
+        expect(toSessionStateDto(makeSession())).toEqual({ music: null, environment: null, zone: null, ambiance: null, startedAt: null });
     });
 });

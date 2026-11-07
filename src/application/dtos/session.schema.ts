@@ -1,4 +1,5 @@
 import { Type, Static } from "@fastify/type-provider-typebox";
+import { AudioTrackResponse } from "./soundTrack.schema.js";
 
 export const CreateSessionBody = Type.Object({
     sessionName: Type.String({ minLength: 1 }),
@@ -33,3 +34,12 @@ export const SessionResponse = Type.Object({
     owner: UserSummary,
     sessionMembers: Type.Array(UserSummary),
 });
+
+export const SessionStateResponse = Type.Object({
+    music: Type.Union([AudioTrackResponse, Type.Null()]),
+    environment: Type.Union([AudioTrackResponse, Type.Null()]),
+    zone: Type.Union([Type.String(), Type.Null()]),
+    ambiance: Type.Union([Type.String(), Type.Null()]),
+    startedAt: Type.Union([Type.String(), Type.Null()]),
+});
+export type SessionStateResponse = Static<typeof SessionStateResponse>;

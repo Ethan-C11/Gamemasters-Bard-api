@@ -1,11 +1,14 @@
 import { describe, expect, it, vi, beforeAll, afterAll } from "vitest";
 import { bearer, createTestApp, tokenFor } from "../helpers/app.js";
-import { makeSession, makeUser } from "../helpers/factories.js";
+import { makeSession, makeTrack, makeUser } from "../helpers/factories.js";
+import { Zone } from "../../src/shared/enums/Zone.js";
+import { Ambiance } from "../../src/shared/enums/Ambiance.js";
 import type { App } from "../../src/app.js";
 import { CreateSessionUseCase } from "../../src/application/useCases/session/CreateSessionUseCase.js";
 import { DeleteSessionUseCase } from "../../src/application/useCases/session/DeleteSessionUseCase.js";
 import { JoinSessionUseCase } from "../../src/application/useCases/session/JoinSessionUseCase.js";
 import { QuitSessionUseCase } from "../../src/application/useCases/session/QuitSessionUseCase.js";
+import { GetSessionStateUseCase } from "../../src/application/useCases/session/GetSessionStateUseCase.js";
 import { Role } from "../../src/shared/enums/Role.js";
 
 let app: App;
@@ -157,5 +160,47 @@ describe("POST /session/quit/:id", () => {
 
         expect(res.statusCode).toBe(400);
         expect(res.json()).toEqual({ error: "User is not a member of this session" });
+    });
+});
+
+describe("GET /session/:id/state", () => {
+    it("returns the current state of the session", async () => {
+        const music = makeTrack();
+        const execute = vi.spyOn(GetSessionStateUseCase.getInstance(), "execute").mockResolvedValueOnce(makeSession({
+            currentMusic: music,
+            currentZone: Zone.FOREST,
+            currentAmbiance: Ambiance.CALM,
+            playbackStartedAt: new Date("2026-01-01T00:00:00.000Z"),
+        }));
+
+        const res = await app.inject({ method: "GET", url: "/session/10/state", headers: bearer(playerToken) });
+
+        expect(res.statusCode).toBe(200);
+        expect(res.json()).toEqual({
+            music: { key: music.storageKey, name: music.name, type: music.type, zone: music.zone, ambiance: music.ambiance, isUserImported: false },
+            environment: null,
+            zone: Zone.FOREST,
+            ambiance: Ambiance.CALM,
+            startedAt: "2026-01-01T00:00:00.000Z",
+        });
+        expect(execute).toHaveBeenCalledWith(10, 2);
+    });
+
+    it("answers 400 with the use case error", async () => {
+        vi.spyOn(GetSessionStateUseCase.getInstance(), "execute").mockRejectedValueOnce(new Error("User is not a member of this session"));
+
+        const res = await app.inject({ method: "GET", url: "/session/10/state", headers: bearer(playerToken) });
+
+        expect(res.statusCode).toBe(400);
+        expect(res.json()).toEqual({ error: "User is not a member of this session" });
+    });
+
+    it("requires authentication", async () => {
+        const execute = vi.spyOn(GetSessionStateUseCase.getInstance(), "execute");
+
+        const res = await app.inject({ method: "GET", url: "/session/10/state" });
+
+        expect(res.statusCode).toBe(401);
+        expect(execute).not.toHaveBeenCalled();
     });
 });

@@ -95,3 +95,42 @@ describe("sound library", () => {
         expect(await AppDataSource.getRepository(AudioTrack).countBy({ storageKey: otherEnvironment.body.key })).toBe(0);
     });
 });
+
+describe("session state", () => {
+    it("is kept after each draw and readable by the owner and the members only", async () => {
+        const host = await signUpAndSignIn(api, "state-host");
+        const player = await signUpAndSignIn(api, "state-player");
+        const stranger = await signUpAndSignIn(api, "state-stranger");
+        const forestCalm = { zone: "forest", ambiance: "calm", isUserImported: true };
+
+        expect((await host.client.post("/audio/upload", audioForm({ name: "State music", type: "music", ...forestCalm }))).status).toBe(200);
+        expect((await host.client.post("/audio/upload", audioForm({ name: "State rain", type: "environment", ...forestCalm }))).status).toBe(200);
+        const session = await host.client.post("/session", { sessionName: "State" });
+        await player.client.post("/session/join", { inviteCode: session.body.inviteCode });
+        const url = `/session/${session.body.id}/state`;
+
+        const empty = await host.client.request("GET", url);
+        expect(empty.status).toBe(200);
+        expect(empty.body).toEqual({ music: null, environment: null, zone: null, ambiance: null, startedAt: null });
+
+        const draw = await host.client.post("/audio/resolve", { sessionId: session.body.id, zone: "forest", ambiance: "calm" });
+        expect(draw.status).toBe(200);
+
+        const asOwner = await host.client.request("GET", url);
+        const asMember = await player.client.request("GET", url);
+        expect(asOwner.status).toBe(200);
+        expect(asOwner.body).toMatchObject({ music: draw.body.music, environment: draw.body.environment, zone: "forest", ambiance: "calm" });
+        expect(new Date(asOwner.body.startedAt).getTime()).toBeLessThanOrEqual(Date.now());
+        expect(asMember.body).toEqual(asOwner.body);
+
+        expect((await stranger.client.request("GET", url)).status).toBe(400);
+        expect((await host.client.request("GET", `/session/${session.body.id + 1000}/state`)).status).toBe(400);
+        expect((await api.request("GET", url)).status).toBe(401);
+
+        await AppDataSource.getRepository(AudioTrack).delete({ storageKey: draw.body.music.key });
+        const afterDelete = await host.client.request("GET", url);
+        expect(afterDelete.status).toBe(200);
+        expect(afterDelete.body.music).toBeNull();
+        expect(afterDelete.body.environment).toEqual(draw.body.environment);
+    });
+});

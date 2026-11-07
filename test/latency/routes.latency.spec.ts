@@ -126,6 +126,15 @@ describe("route latency (p95)", () => {
         expect(stats.p95).toBeLessThan(stats.budgetP95);
     });
 
+    it("GET /session/:id/state", async () => {
+        const stats = await measure("GET /session/:id/state", 150, async () => {
+            const res = await user.client.request("GET", `/session/${sessionId}/state`);
+            expect(res.status).toBe(200);
+        });
+
+        expect(stats.p95).toBeLessThan(stats.budgetP95);
+    });
+
     it("POST /audio/upload (100 KB)", async () => {
         const stats = await measure("POST /audio/upload (100 KB)", 300, async () => {
             const res = await user.client.post("/audio/upload", audioForm({ name: "Upload", type: "music", zone: "cave", ambiance: "calm", isUserImported: true }, undefined, 100_000));

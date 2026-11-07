@@ -32,6 +32,11 @@ export function makeSession(overrides: Partial<Session> = {}): Session {
         sessionMembers: [owner],
         alreadyPlayedMusic: [],
         alreadyPlayedEnvironment: [],
+        currentMusic: null,
+        currentEnvironment: null,
+        currentZone: null,
+        currentAmbiance: null,
+        playbackStartedAt: null,
         ...overrides,
     });
 }
