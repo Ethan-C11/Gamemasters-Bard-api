@@ -12,7 +12,7 @@ services:
       CHOKIDAR_USEPOLLING: "true"
       CHOKIDAR_INTERVAL: "500"
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@gm-postgres:5432/${POSTGRES_DB}
-      S3_ENDPOINT: http://minio:9000
+      S3_ENDPOINT: http://gm-minio:9000
       S3_REGION: us-east-1
       S3_BUCKET: ${S3_BUCKET:-audio}
       S3_ACCESS_KEY: ${S3_ACCESS_KEY:-}
