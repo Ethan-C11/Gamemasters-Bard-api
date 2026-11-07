@@ -71,6 +71,24 @@ describe("route latency (p95)", () => {
         expect(stats.p95).toBeLessThan(stats.budgetP95);
     });
 
+    it("POST /auth/verify-email", async () => {
+        const stats = await measure("POST /auth/verify-email", 150, async () => {
+            const res = await api.post("/auth/verify-email", { token: "unknown" });
+            expect(res.status).toBe(400);
+        });
+
+        expect(stats.p95).toBeLessThan(stats.budgetP95);
+    });
+
+    it("POST /auth/resend-verification", async () => {
+        const stats = await measure("POST /auth/resend-verification", 150, async () => {
+            const res = await api.post("/auth/resend-verification", { email: user.email });
+            expect(res.status).toBe(200);
+        });
+
+        expect(stats.p95).toBeLessThan(stats.budgetP95);
+    });
+
     it("POST /auth/forgot-password", async () => {
         const stats = await measure("POST /auth/forgot-password", 150, async () => {
             const res = await api.post("/auth/forgot-password", { email: user.email });

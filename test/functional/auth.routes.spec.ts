@@ -9,6 +9,8 @@ import { RefreshAccessTokenUseCase } from "../../src/application/useCases/auth/R
 import { AccountActivationUseCase } from "../../src/application/useCases/user/AccountActivationUseCase.js";
 import { RequestPasswordResetUseCase } from "../../src/application/useCases/auth/RequestPasswordResetUseCase.js";
 import { ResetPasswordUseCase } from "../../src/application/useCases/auth/ResetPasswordUseCase.js";
+import { VerifyEmailUseCase } from "../../src/application/useCases/auth/VerifyEmailUseCase.js";
+import { ResendVerificationEmailUseCase } from "../../src/application/useCases/auth/ResendVerificationEmailUseCase.js";
 import { LogoutUseCase } from "../../src/application/useCases/auth/LogoutUseCase.js";
 import { buildApp } from "../../src/app.js";
 import { Role } from "../../src/shared/enums/Role.js";
@@ -26,18 +28,16 @@ afterAll(async () => {
 const credentials = { email: "gm@gm-test.test", username: "bard", password: "password123" };
 
 describe("POST /auth/signup", () => {
-    it("creates the account and returns tokens", async () => {
-        vi.spyOn(SignUpUseCase.getInstance(), "execute").mockResolvedValueOnce(makeUser({ id: 3 }));
-        vi.spyOn(IssueRefreshTokenUseCase.getInstance(), "execute").mockResolvedValueOnce("refresh-token");
+    it("creates the account without signing it in", async () => {
+        const execute = vi.spyOn(SignUpUseCase.getInstance(), "execute").mockResolvedValueOnce(makeUser({ id: 3 }));
+        const issue = vi.spyOn(IssueRefreshTokenUseCase.getInstance(), "execute");
 
         const res = await app.inject({ method: "POST", url: "/auth/signup", payload: credentials });
 
         expect(res.statusCode).toBe(201);
-        const body = res.json();
-        expect(body.refreshToken).toBe("refresh-token");
-        expect(body.user).toEqual({ id: 3, email: "gm@gm-test.test", username: "gamemaster" });
-        expect(app.jwt.verify<{ id: number; role: Role }>(body.token)).toMatchObject({ id: 3, role: Role.USER });
-        expect(SignUpUseCase.getInstance().execute).toHaveBeenCalledWith("gm@gm-test.test", "bard", "password123");
+        expect(res.json()).toEqual({ message: "Account created, check your email to verify it" });
+        expect(execute).toHaveBeenCalledWith("gm@gm-test.test", "bard", "password123");
+        expect(issue).not.toHaveBeenCalled();
     });
 
     it("answers 400 with the use case error", async () => {
@@ -165,6 +165,68 @@ describe("POST /auth/logout", () => {
         const execute = vi.spyOn(LogoutUseCase.getInstance(), "execute");
 
         const res = await app.inject({ method: "POST", url: "/auth/logout", payload: {} });
+
+        expect(res.statusCode).toBe(400);
+        expect(execute).not.toHaveBeenCalled();
+    });
+});
+
+describe("POST /auth/verify-email", () => {
+    it("verifies the email", async () => {
+        const execute = vi.spyOn(VerifyEmailUseCase.getInstance(), "execute").mockResolvedValueOnce(makeUser());
+
+        const res = await app.inject({ method: "POST", url: "/auth/verify-email", payload: { token: "raw" } });
+
+        expect(res.statusCode).toBe(200);
+        expect(res.json()).toEqual({ message: "Email verified" });
+        expect(execute).toHaveBeenCalledWith("raw");
+    });
+
+    it("answers 400 with the use case error", async () => {
+        vi.spyOn(VerifyEmailUseCase.getInstance(), "execute").mockRejectedValueOnce(new Error("Token is expired"));
+
+        const res = await app.inject({ method: "POST", url: "/auth/verify-email", payload: { token: "raw" } });
+
+        expect(res.statusCode).toBe(400);
+        expect(res.json()).toEqual({ error: "Token is expired" });
+    });
+
+    it("requires a token", async () => {
+        const execute = vi.spyOn(VerifyEmailUseCase.getInstance(), "execute");
+
+        const res = await app.inject({ method: "POST", url: "/auth/verify-email", payload: {} });
+
+        expect(res.statusCode).toBe(400);
+        expect(execute).not.toHaveBeenCalled();
+    });
+});
+
+describe("POST /auth/resend-verification", () => {
+    const genericMessage = { message: "If an account is waiting for verification, a new link has been sent" };
+
+    it("answers the generic message and resends the link", async () => {
+        const execute = vi.spyOn(ResendVerificationEmailUseCase.getInstance(), "execute").mockResolvedValueOnce(undefined);
+
+        const res = await app.inject({ method: "POST", url: "/auth/resend-verification", payload: { email: credentials.email } });
+
+        expect(res.statusCode).toBe(200);
+        expect(res.json()).toEqual(genericMessage);
+        expect(execute).toHaveBeenCalledWith(credentials.email);
+    });
+
+    it("answers the same message when the resend fails", async () => {
+        vi.spyOn(ResendVerificationEmailUseCase.getInstance(), "execute").mockRejectedValueOnce(new Error("SMTP down"));
+
+        const res = await app.inject({ method: "POST", url: "/auth/resend-verification", payload: { email: credentials.email } });
+
+        expect(res.statusCode).toBe(200);
+        expect(res.json()).toEqual(genericMessage);
+    });
+
+    it("rejects an invalid email", async () => {
+        const execute = vi.spyOn(ResendVerificationEmailUseCase.getInstance(), "execute");
+
+        const res = await app.inject({ method: "POST", url: "/auth/resend-verification", payload: { email: "nope" } });
 
         expect(res.statusCode).toBe(400);
         expect(execute).not.toHaveBeenCalled();

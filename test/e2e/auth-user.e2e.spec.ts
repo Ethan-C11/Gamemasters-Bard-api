@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeAll, afterAll } from "vitest";
-import { ApiClient, signUpAndSignIn, startTestServer, uniqueEmail, type TestServer } from "../helpers/http.js";
+import { ApiClient, signUpAndSignIn, startTestServer, uniqueEmail, verificationTokenFromMail, type TestServer } from "../helpers/http.js";
 import { sendMailMock } from "../helpers/mockStorage.js";
 import { AppDataSource } from "../../src/infrastructure/db/AppDataSource.js";
 import { User } from "../../src/infrastructure/db/entities/user.entity.js";
@@ -41,15 +41,22 @@ describe("account lifecycle", () => {
 
         const signup = await api.post("/auth/signup", { email, username: "life", password: "password123" });
         expect(signup.status).toBe(201);
-        expect(signup.body.refreshToken).toMatch(/^[0-9a-f]{64}$/);
+        expect(signup.body).toEqual({ message: "Account created, check your email to verify it" });
 
         const duplicate = await api.post("/auth/signup", { email, username: "life", password: "password123" });
         expect(duplicate.status).toBe(400);
 
-        const refreshed = await api.post("/auth/refresh", { refreshToken: signup.body.refreshToken });
+        expect((await api.post("/auth/signin", { email, password: "password123" })).status).toBe(401);
+        expect((await api.post("/auth/verify-email", { token: verificationTokenFromMail() })).status).toBe(200);
+
+        const firstSignin = await api.post("/auth/signin", { email, password: "password123" });
+        expect(firstSignin.status).toBe(200);
+        expect(firstSignin.body.refreshToken).toMatch(/^[0-9a-f]{64}$/);
+
+        const refreshed = await api.post("/auth/refresh", { refreshToken: firstSignin.body.refreshToken });
         expect(refreshed.status).toBe(200);
-        expect(refreshed.body.refreshToken).not.toBe(signup.body.refreshToken);
-        expect((await api.post("/auth/refresh", { refreshToken: signup.body.refreshToken })).status).toBe(401);
+        expect(refreshed.body.refreshToken).not.toBe(firstSignin.body.refreshToken);
+        expect((await api.post("/auth/refresh", { refreshToken: firstSignin.body.refreshToken })).status).toBe(401);
 
         const client = api.withToken(refreshed.body.token);
         const edited = await client.put("/user", { username: "renamed", password: "newPassword1" });
@@ -71,6 +78,83 @@ describe("account lifecycle", () => {
     it("rejects calls without a valid token", async () => {
         expect((await api.put("/user", { username: "valid" })).status).toBe(401);
         expect((await api.withToken("forged.token.value").put("/user", { username: "valid" })).status).toBe(401);
+    });
+});
+
+describe("email verification", () => {
+    async function signUp(prefix: string): Promise<string> {
+        const email = uniqueEmail(prefix);
+        const signup = await api.post("/auth/signup", { email, username: prefix, password: "password123" });
+        expect(signup.status).toBe(201);
+        return email;
+    }
+
+    it("mails a link to the new account, activates it once and consumes the link", async () => {
+        const email = await signUp("verify");
+        expect(sendMailMock.mock.calls[0]?.[0].to).toBe(email);
+        const rawToken = verificationTokenFromMail();
+
+        const stored = await AppDataSource.getRepository(User).findOneByOrFail({ email });
+        expect(stored.userStatus).toBe(UserStatus.PENDING_ACTIVATION);
+
+        expect((await api.post("/auth/verify-email", { token: rawToken })).body).toEqual({ message: "Email verified" });
+        expect((await AppDataSource.getRepository(User).findOneByOrFail({ email })).userStatus).toBe(UserStatus.ACTIVE);
+
+        const reused = await api.post("/auth/verify-email", { token: rawToken });
+        expect(reused.status).toBe(400);
+        expect(reused.body.error).toBe("Already used token");
+    });
+
+    it("cancels the previous link when a new one is requested", async () => {
+        const email = await signUp("resend");
+        const firstToken = verificationTokenFromMail();
+
+        const resent = await api.post("/auth/resend-verification", { email });
+        expect(resent.status).toBe(200);
+        await vi.waitFor(() => expect(sendMailMock.mock.calls.length).toBe(2));
+        const secondToken = verificationTokenFromMail(1);
+
+        expect((await api.post("/auth/verify-email", { token: firstToken })).status).toBe(400);
+        expect((await api.post("/auth/verify-email", { token: secondToken })).status).toBe(200);
+        expect((await api.post("/auth/signin", { email, password: "password123" })).status).toBe(200);
+    });
+
+    it("answers the same message and sends nothing for unknown or already verified accounts", async () => {
+        const { email } = await signUpAndSignIn(api, "verified");
+
+        const unknown = await api.post("/auth/resend-verification", { email: uniqueEmail("nobody") });
+        const verified = await api.post("/auth/resend-verification", { email });
+
+        expect(unknown.status).toBe(200);
+        expect(verified.body).toEqual(unknown.body);
+        await new Promise((resolve) => setTimeout(resolve, 200));
+        expect(sendMailMock).not.toHaveBeenCalled();
+    });
+
+    it("rejects an expired link, an unknown token and a link of another purpose", async () => {
+        const email = await signUp("stale");
+        const rawToken = verificationTokenFromMail();
+        await AppDataSource.getRepository(ActivationToken).update(
+            { tokenHash: TokenHasher.hashToken(rawToken) },
+            { expiresAt: new Date(Date.now() - 1000) },
+        );
+
+        const expired = await api.post("/auth/verify-email", { token: rawToken });
+        expect(expired.status).toBe(400);
+        expect(expired.body.error).toBe("Token is expired");
+        expect((await api.post("/auth/verify-email", { token: "unknown" })).status).toBe(400);
+
+        const user = await AppDataSource.getRepository(User).findOneByOrFail({ email });
+        const otherToken = "other-purpose-token";
+        await AppDataSource.getRepository(ActivationToken).save(AppDataSource.getRepository(ActivationToken).create({
+            user,
+            userId: user.id,
+            tokenHash: TokenHasher.hashToken(otherToken),
+            purpose: TokenPurpose.PASSWORD_RESET,
+            expiresAt: new Date(Date.now() + 60_000),
+        }));
+        expect((await api.post("/auth/verify-email", { token: otherToken })).status).toBe(400);
+        expect((await api.post("/auth/signin", { email, password: "password123" })).status).toBe(401);
     });
 });
 
