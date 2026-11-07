@@ -4,9 +4,10 @@ import {AudioTrack} from "../../../infrastructure/db/entities/audioTrack.entity.
 import {SoundType} from "../../../shared/enums/SoundType.js";
 import {Zone} from "../../../shared/enums/Zone.js";
 import {Ambiance} from "../../../shared/enums/Ambiance.js";
-import {AudioTrackResponse, DrawSessionSoundsResponse} from "../../dtos/soundTrack.schema.js";
+import {DrawSessionSoundsResponse} from "../../dtos/soundTrack.schema.js";
 import {User} from "../../../infrastructure/db/entities/user.entity.js";
 import {Session} from "../../../infrastructure/db/entities/session.entity.js";
+import {toAudioTrackDto} from "../../mappers/audio.mappers.js";
 
 type PickedSound = { sound: AudioTrack | null; history: number[] };
 
@@ -55,11 +56,16 @@ class DrawSessionSoundsUseCase {
 
         session.alreadyPlayedMusic = music.history;
         session.alreadyPlayedEnvironment = environment.history;
+        session.currentMusic = music.sound;
+        session.currentEnvironment = environment.sound;
+        session.currentZone = zone ?? null;
+        session.currentAmbiance = ambiance ?? null;
+        session.playbackStartedAt = new Date();
         await this._sessionRepository.save(session);
 
         return {
-            music: this.toResponse(music.sound),
-            environment: this.toResponse(environment.sound),
+            music: toAudioTrackDto(music.sound),
+            environment: toAudioTrackDto(environment.sound),
         };
     }
 
@@ -95,20 +101,6 @@ class DrawSessionSoundsUseCase {
         }
 
         return { sound: chosenSound, history: history };
-    }
-
-    private toResponse(sound: AudioTrack | null): AudioTrackResponse | null {
-        if (!sound)
-            return null;
-
-        return {
-            key: sound.storageKey,
-            name: sound.name,
-            type: sound.type,
-            zone: sound.zone,
-            ambiance: sound.ambiance,
-            isUserImported: sound.isUserImported,
-        };
     }
 }
 
