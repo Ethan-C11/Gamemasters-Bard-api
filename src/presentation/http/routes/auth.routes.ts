@@ -5,7 +5,7 @@ import {SignInUseCase} from "../../../application/useCases/auth/SignInUseCase.js
     import {
     ActivateBody,
     ActivateResponse,
-    AuthResponse, ForgotPasswordBody, RefreshBody, ResetPasswordBody,
+    AuthResponse, ForgotPasswordBody, LogoutBody, RefreshBody, ResetPasswordBody,
     SignInBody,
     SignUpBody
 } from "../../../application/dtos/auth.schema.js";
@@ -16,6 +16,7 @@ import {SignInUseCase} from "../../../application/useCases/auth/SignInUseCase.js
     import {IssueRefreshTokenUseCase} from "../../../application/useCases/auth/IssueRefreshTokenUseCase.js";
     import {RequestPasswordResetUseCase} from "../../../application/useCases/auth/RequestPasswordResetUseCase.js";
     import {ResetPasswordUseCase} from "../../../application/useCases/auth/ResetPasswordUseCase.js";
+    import {LogoutUseCase} from "../../../application/useCases/auth/LogoutUseCase.js";
 
 export async function authRoutes(app: FastifyInstance) {
 
@@ -107,6 +108,27 @@ export async function authRoutes(app: FastifyInstance) {
             });
         } catch (err) {
             return reply.status(401).send({ error: (err as Error).message });
+        }
+    });
+
+    app.post('/logout', {
+        schema: {
+            tags: ["Auth"],
+            summary: "Disconnect an user by revoking its refresh token",
+            body: LogoutBody,
+            response: {
+                200: MessageResponse,
+                400: ErrorResponse,
+            },
+        }
+    }, async (request, reply) => {
+        const { refreshToken } = request.body as { refreshToken: string };
+
+        try {
+            await LogoutUseCase.getInstance().execute(refreshToken);
+            return reply.status(200).send({ message: "Logged out" });
+        } catch (err) {
+            return reply.status(400).send({ error: (err as Error).message });
         }
     });
 
