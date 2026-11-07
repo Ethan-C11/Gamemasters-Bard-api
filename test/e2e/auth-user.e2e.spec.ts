@@ -137,6 +137,32 @@ describe("elevated accounts", () => {
     });
 });
 
+describe("logout", () => {
+    it("revokes the given refresh token and leaves the other sessions alone", async () => {
+        const { email, refreshToken } = await signUpAndSignIn(api, "logout", "password123");
+        const otherDevice = await api.post("/auth/signin", { email, password: "password123" });
+
+        const loggedOut = await api.post("/auth/logout", { refreshToken });
+        expect(loggedOut.status).toBe(200);
+        expect(loggedOut.body).toEqual({ message: "Logged out" });
+
+        expect((await api.post("/auth/refresh", { refreshToken })).status).toBe(401);
+        expect((await api.post("/auth/refresh", { refreshToken: otherDevice.body.refreshToken })).status).toBe(200);
+    });
+
+    it("answers 200 for an unknown or already revoked token", async () => {
+        const { refreshToken } = await signUpAndSignIn(api, "logout-twice");
+
+        expect((await api.post("/auth/logout", { refreshToken })).status).toBe(200);
+        expect((await api.post("/auth/logout", { refreshToken })).status).toBe(200);
+        expect((await api.post("/auth/logout", { refreshToken: "unknown" })).status).toBe(200);
+    });
+
+    it("rejects a request without refresh token", async () => {
+        expect((await api.post("/auth/logout", {})).status).toBe(400);
+    });
+});
+
 describe("password reset", () => {
     async function resetTokenFromMail(mailIndex = 0): Promise<string> {
         await vi.waitFor(() => expect(sendMailMock.mock.calls.length).toBeGreaterThan(mailIndex));

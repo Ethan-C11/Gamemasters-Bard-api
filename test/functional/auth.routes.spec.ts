@@ -9,6 +9,7 @@ import { RefreshAccessTokenUseCase } from "../../src/application/useCases/auth/R
 import { AccountActivationUseCase } from "../../src/application/useCases/user/AccountActivationUseCase.js";
 import { RequestPasswordResetUseCase } from "../../src/application/useCases/auth/RequestPasswordResetUseCase.js";
 import { ResetPasswordUseCase } from "../../src/application/useCases/auth/ResetPasswordUseCase.js";
+import { LogoutUseCase } from "../../src/application/useCases/auth/LogoutUseCase.js";
 import { buildApp } from "../../src/app.js";
 import { Role } from "../../src/shared/enums/Role.js";
 
@@ -137,6 +138,36 @@ describe("POST /auth/activate", () => {
         const res = await app.inject({ method: "POST", url: "/auth/activate", payload: { token: "raw", password: "short" } });
 
         expect(res.statusCode).toBe(400);
+    });
+});
+
+describe("POST /auth/logout", () => {
+    it("revokes the refresh token", async () => {
+        const execute = vi.spyOn(LogoutUseCase.getInstance(), "execute").mockResolvedValueOnce(undefined);
+
+        const res = await app.inject({ method: "POST", url: "/auth/logout", payload: { refreshToken: "raw" } });
+
+        expect(res.statusCode).toBe(200);
+        expect(res.json()).toEqual({ message: "Logged out" });
+        expect(execute).toHaveBeenCalledWith("raw");
+    });
+
+    it("answers 400 when the revocation fails", async () => {
+        vi.spyOn(LogoutUseCase.getInstance(), "execute").mockRejectedValueOnce(new Error("DB down"));
+
+        const res = await app.inject({ method: "POST", url: "/auth/logout", payload: { refreshToken: "raw" } });
+
+        expect(res.statusCode).toBe(400);
+        expect(res.json()).toEqual({ error: "DB down" });
+    });
+
+    it("requires a refresh token", async () => {
+        const execute = vi.spyOn(LogoutUseCase.getInstance(), "execute");
+
+        const res = await app.inject({ method: "POST", url: "/auth/logout", payload: {} });
+
+        expect(res.statusCode).toBe(400);
+        expect(execute).not.toHaveBeenCalled();
     });
 });
 

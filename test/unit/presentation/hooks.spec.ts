@@ -54,7 +54,7 @@ describe("authorize", () => {
 });
 
 describe("registerJwt", () => {
-    it("signs tokens with the secret that expire after 4 hours", async () => {
+    it("signs tokens with the secret that expire after 15 minutes", async () => {
         const app = Fastify();
         await registerJwt(app);
         await app.ready();
@@ -63,7 +63,7 @@ describe("registerJwt", () => {
         const decoded = app.jwt.verify<{ id: number; iat: number; exp: number }>(token);
 
         expect(decoded.id).toBe(1);
-        expect(decoded.exp - decoded.iat).toBe(4 * 60 * 60);
+        expect(decoded.exp - decoded.iat).toBe(15 * 60);
         await app.close();
     });
 });

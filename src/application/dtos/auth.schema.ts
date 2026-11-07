@@ -52,3 +52,8 @@ export const RefreshBody = Type.Object({
     refreshToken: Type.String(),
 });
 export type RefreshBody = Static<typeof RefreshBody>;
+
+export const LogoutBody = Type.Object({
+    refreshToken: Type.String(),
+});
+export type LogoutBody = Static<typeof LogoutBody>;

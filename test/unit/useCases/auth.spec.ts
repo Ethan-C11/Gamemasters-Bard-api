@@ -14,6 +14,7 @@ import { SendActivationEmailUseCase } from "../../../src/application/useCases/au
 import { SendPasswordResetEmailUseCase } from "../../../src/application/useCases/auth/SendPasswordResetEmailUseCase.js";
 import { RequestPasswordResetUseCase } from "../../../src/application/useCases/auth/RequestPasswordResetUseCase.js";
 import { ResetPasswordUseCase } from "../../../src/application/useCases/auth/ResetPasswordUseCase.js";
+import { LogoutUseCase } from "../../../src/application/useCases/auth/LogoutUseCase.js";
 import { PasswordHasher } from "../../../src/shared/utils/PasswordHasher.js";
 import { TokenHasher } from "../../../src/shared/utils/TokenHasher.js";
 import { Role } from "../../../src/shared/enums/Role.js";
@@ -361,5 +362,36 @@ describe("ResetPasswordUseCase", () => {
         const result = await ResetPasswordUseCase.getInstance().execute("raw", "twelve-chars");
 
         await expect(PasswordHasher.verify(result.hashedPassword as string, "twelve-chars")).resolves.toBe(true);
+    });
+});
+
+describe("LogoutUseCase", () => {
+    it("returns the same singleton instance", () => {
+        expect(LogoutUseCase.getInstance()).toBe(LogoutUseCase.getInstance());
+    });
+
+    it("revokes only the given refresh token if it is not already revoked", async () => {
+        vi.useFakeTimers();
+        vi.setSystemTime(new Date("2026-01-01T00:00:00.000Z"));
+
+        await LogoutUseCase.getInstance().execute("raw");
+
+        expect(refreshTokens.update).toHaveBeenCalledOnce();
+        expect(refreshTokens.update).toHaveBeenCalledWith(
+            { tokenHash: TokenHasher.hashToken("raw"), revokedAt: IsNull() },
+            { revokedAt: new Date("2026-01-01T00:00:00.000Z") },
+        );
+    });
+
+    it("does not fail when the token is unknown or already revoked", async () => {
+        refreshTokens.update.mockResolvedValueOnce({ affected: 0 });
+
+        await expect(LogoutUseCase.getInstance().execute("raw")).resolves.toBeUndefined();
+    });
+
+    it("propagates database errors", async () => {
+        refreshTokens.update.mockRejectedValueOnce(new Error("DB down"));
+
+        await expect(LogoutUseCase.getInstance().execute("raw")).rejects.toThrow("DB down");
     });
 });
