@@ -5,9 +5,9 @@ import {SignInUseCase} from "../../../application/useCases/auth/SignInUseCase.js
     import {
     ActivateBody,
     ActivateResponse,
-    AuthResponse, ForgotPasswordBody, LogoutBody, RefreshBody, ResetPasswordBody,
+    AuthResponse, ForgotPasswordBody, LogoutBody, RefreshBody, ResendVerificationBody, ResetPasswordBody,
     SignInBody,
-    SignUpBody
+    SignUpBody, VerifyEmailBody
 } from "../../../application/dtos/auth.schema.js";
     import {ErrorResponse, MessageResponse} from "../../../application/dtos/shared.schema.js";
     import {AccountActivationUseCase} from "../../../application/useCases/user/AccountActivationUseCase.js";
@@ -17,6 +17,8 @@ import {SignInUseCase} from "../../../application/useCases/auth/SignInUseCase.js
     import {RequestPasswordResetUseCase} from "../../../application/useCases/auth/RequestPasswordResetUseCase.js";
     import {ResetPasswordUseCase} from "../../../application/useCases/auth/ResetPasswordUseCase.js";
     import {LogoutUseCase} from "../../../application/useCases/auth/LogoutUseCase.js";
+    import {VerifyEmailUseCase} from "../../../application/useCases/auth/VerifyEmailUseCase.js";
+    import {ResendVerificationEmailUseCase} from "../../../application/useCases/auth/ResendVerificationEmailUseCase.js";
 
 export async function authRoutes(app: FastifyInstance) {
 
@@ -26,7 +28,7 @@ export async function authRoutes(app: FastifyInstance) {
             summary: "Create an user account",
             body: SignUpBody,
             response: {
-                201: AuthResponse,
+                201: MessageResponse,
                 400: ErrorResponse,
             },
         },
@@ -36,17 +38,9 @@ export async function authRoutes(app: FastifyInstance) {
         };
 
         try {
-            const user: User = await SignUpUseCase.getInstance().execute(email, username, password);
+            await SignUpUseCase.getInstance().execute(email, username, password);
 
-            const payload: JwtPayload = { id: user.id, email: user.email, role: user.role };
-            const token = app.jwt.sign(payload);
-            const refreshToken = await IssueRefreshTokenUseCase.getInstance().execute(user.id);
-
-            return reply.status(201).send({
-                token,
-                refreshToken,
-                user: { id: user.id, email: user.email, username: user.username }
-            });
+            return reply.status(201).send({ message: "Account created, check your email to verify it" });
         } catch (err) {
             return reply.status(400).send({ error: (err as Error).message });
         }
@@ -188,5 +182,43 @@ export async function authRoutes(app: FastifyInstance) {
         } catch (err) {
             return reply.status(400).send({ error: (err as Error).message });
         }
+    });
+
+    app.post('/verify-email', {
+        schema: {
+            tags: ["Auth"],
+            summary: "Verify an user email with the token sent at signup",
+            body: VerifyEmailBody,
+            response: {
+                200: MessageResponse,
+                400: ErrorResponse,
+            },
+        }
+    }, async (request, reply) => {
+        const { token } = request.body as { token: string };
+        try {
+            await VerifyEmailUseCase.getInstance().execute(token);
+            return reply.status(200).send({ message: "Email verified" });
+        } catch (err) {
+            return reply.status(400).send({ error: (err as Error).message });
+        }
+    });
+
+    app.post('/resend-verification', {
+        config: { rateLimit: { max: 5, timeWindow: "1 minute" } },
+        schema: {
+            tags: ["Auth"],
+            summary: "Send the email verification link again",
+            body: ResendVerificationBody,
+            response: {
+                200: MessageResponse,
+            },
+        }
+    }, async (request, reply) => {
+        const { email } = request.body as { email: string };
+
+        ResendVerificationEmailUseCase.getInstance().execute(email).catch((err) => app.log.error(err));
+
+        return reply.status(200).send({ message: "If an account is waiting for verification, a new link has been sent" });
     });
 }

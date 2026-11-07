@@ -57,3 +57,13 @@ export const LogoutBody = Type.Object({
     refreshToken: Type.String(),
 });
 export type LogoutBody = Static<typeof LogoutBody>;
+
+export const VerifyEmailBody = Type.Object({
+    token: Type.String(),
+});
+export type VerifyEmailBody = Static<typeof VerifyEmailBody>;
+
+export const ResendVerificationBody = Type.Object({
+    email: Type.String({ format: "email" }),
+});
+export type ResendVerificationBody = Static<typeof ResendVerificationBody>;
