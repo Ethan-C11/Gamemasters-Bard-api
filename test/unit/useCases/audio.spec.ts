@@ -214,6 +214,37 @@ describe("DrawSessionSoundsUseCase", () => {
         expect(sessions.save).toHaveBeenCalledWith(session);
     });
 
+    it("records the drawn sounds and filters as the current state of the session", async () => {
+        vi.useFakeTimers();
+        vi.setSystemTime(new Date("2026-01-01T00:00:00.000Z"));
+        const session = givenSession();
+        const music = makeTrack({ id: 1 });
+        const environment = makeTrack({ id: 2, type: SoundType.ENVIRONMENT });
+        givenTracks([music], [environment]);
+
+        await draw(Zone.FOREST, Ambiance.CALM);
+
+        expect(session.currentMusic).toBe(music);
+        expect(session.currentEnvironment).toBe(environment);
+        expect(session.currentZone).toBe(Zone.FOREST);
+        expect(session.currentAmbiance).toBe(Ambiance.CALM);
+        expect(session.playbackStartedAt).toEqual(new Date("2026-01-01T00:00:00.000Z"));
+    });
+
+    it("replaces the previous state, clearing the filter and the type that was not drawn", async () => {
+        const session = givenSession({
+            currentEnvironment: makeTrack({ id: 9, type: SoundType.ENVIRONMENT }),
+            currentZone: Zone.FOREST,
+        });
+        givenTracks([makeTrack({ id: 1 })], []);
+
+        await draw(undefined, Ambiance.COMBAT);
+
+        expect(session.currentEnvironment).toBeNull();
+        expect(session.currentZone).toBeNull();
+        expect(session.currentAmbiance).toBe(Ambiance.COMBAT);
+    });
+
     it("filters by ambiance only", async () => {
         givenSession();
         givenTracks([makeTrack()], []);
