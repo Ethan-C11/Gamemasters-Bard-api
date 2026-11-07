@@ -4,6 +4,7 @@ import {Repository} from "typeorm";
 import {PasswordHasher} from "../../../shared/utils/PasswordHasher.js";
 import {Role} from "../../../shared/enums/Role.js";
 import {UserStatus} from "../../../shared/enums/UserStatus.js";
+import {RequestEmailVerificationUseCase} from "./RequestEmailVerificationUseCase.js";
 
 export class SignUpUseCase {
 
@@ -32,9 +33,18 @@ export class SignUpUseCase {
             username: username.trim(),
             hashedPassword : await PasswordHasher.hash(password),
             role : Role.USER,
-            userStatus: UserStatus.ACTIVE
+            userStatus: UserStatus.PENDING_ACTIVATION
         })
 
-        return this._userRepository.save(newUser);
+        await this._userRepository.save(newUser);
+
+        try {
+            await RequestEmailVerificationUseCase.getInstance().execute(newUser);
+        } catch (err) {
+            await this._userRepository.remove(newUser);
+            throw err;
+        }
+
+        return newUser;
     }
 }

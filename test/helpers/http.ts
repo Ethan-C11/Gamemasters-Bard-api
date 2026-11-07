@@ -1,6 +1,7 @@
 import type { AddressInfo } from "node:net";
 import { randomBytes } from "node:crypto";
 import { buildApp, type App } from "../../src/app.js";
+import { sendMailMock } from "./mockStorage.js";
 
 export interface TestServer {
     app: App;
@@ -57,10 +58,18 @@ export function audioForm(fields: Record<string, string | boolean>, filename = `
     return form;
 }
 
+export function verificationTokenFromMail(mailIndex = 0): string {
+    const mail = sendMailMock.mock.calls[mailIndex]?.[0];
+    return new URL(mail.text.match(/http\S+/)[0]).searchParams.get("token") as string;
+}
+
 export async function signUpAndSignIn(api: ApiClient, prefix = "user", password = "password123"): Promise<{ client: ApiClient; id: number; email: string; refreshToken: string }> {
     const email = uniqueEmail(prefix);
     const signup = await api.post("/auth/signup", { email, username: prefix, password });
     if (signup.status !== 201) throw new Error(`signup failed: ${signup.status} ${JSON.stringify(signup.body)}`);
+    const verified = await api.post("/auth/verify-email", { token: verificationTokenFromMail(sendMailMock.mock.calls.length - 1) });
+    if (verified.status !== 200) throw new Error(`verification failed: ${verified.status} ${JSON.stringify(verified.body)}`);
+    sendMailMock.mockClear();
     const signin = await api.post("/auth/signin", { email, password });
     return { client: api.withToken(signin.body.token), id: signin.body.user.id, email, refreshToken: signin.body.refreshToken };
 }

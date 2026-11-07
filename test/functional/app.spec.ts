@@ -10,6 +10,7 @@ describe("buildApp", () => {
         expect(res.statusCode).toBe(200);
         expect(Object.keys(res.json().paths)).toEqual(expect.arrayContaining([
             "/auth/signup", "/auth/signin", "/auth/refresh", "/auth/activate",
+            "/auth/verify-email", "/auth/resend-verification",
             "/user/", "/user/admin/{id}", "/user/admin/create-user",
             "/session/", "/session/{id}", "/session/join", "/session/quit/{id}",
             "/audio/upload", "/audio/resolve", "/audio/list",
