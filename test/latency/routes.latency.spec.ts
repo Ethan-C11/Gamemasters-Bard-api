@@ -160,6 +160,17 @@ describe("route latency (p95)", () => {
         expect(stats.p95).toBeLessThan(stats.budgetP95);
     });
 
+    it("DELETE /audio", async () => {
+        const stats = await measure("DELETE /audio", 150, async (iteration) => {
+            const upload = await user.client.post("/audio/upload", audioForm({ name: "Temp", type: "music", zone: "cave", ambiance: "calm", isUserImported: true }, `del-${iteration}-${Date.now()}.mp3`, 1000));
+            expect(upload.status).toBe(200);
+            const res = await user.client.delete(`/audio?key=${encodeURIComponent(upload.body.key)}`);
+            expect(res.status).toBe(200);
+        }, { iterations: 20 });
+
+        expect(stats.p95).toBeLessThan(stats.budgetP95);
+    });
+
     it("POST /audio/upload (100 KB)", async () => {
         const stats = await measure("POST /audio/upload (100 KB)", 300, async () => {
             const res = await user.client.post("/audio/upload", audioForm({ name: "Upload", type: "music", zone: "cave", ambiance: "calm", isUserImported: true }, undefined, 100_000));

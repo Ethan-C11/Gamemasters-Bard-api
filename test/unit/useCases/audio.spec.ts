@@ -9,6 +9,7 @@ import { Session } from "../../../src/infrastructure/db/entities/session.entity.
 import { AudioTrack } from "../../../src/infrastructure/db/entities/audioTrack.entity.js";
 import ImportAudioUseCase from "../../../src/application/useCases/audio/ImportAudioUseCase.js";
 import ListAudioTracksUseCase from "../../../src/application/useCases/audio/ListAudioTracksUseCase.js";
+import DeleteAudioTrackUseCase from "../../../src/application/useCases/audio/DeleteAudioTrackUseCase.js";
 import DrawSessionSoundsUseCase from "../../../src/application/useCases/audio/DrawSessionSoundsUseCase.js";
 import { SoundType } from "../../../src/shared/enums/SoundType.js";
 import { PlaybackStatus } from "../../../src/shared/enums/PlaybackStatus.js";
@@ -333,5 +334,55 @@ describe("DrawSessionSoundsUseCase", () => {
         vi.spyOn(Math, "random").mockReturnValueOnce(1);
 
         await expect(draw()).rejects.toThrow("Error: No sound selected.");
+    });
+});
+
+describe("DeleteAudioTrackUseCase", () => {
+    const owner = makeUser();
+    const ownTrack = (overrides = {}) => makeTrack({ storageKey: "sounds/1/mine.mp3", uploadedBy: owner, isUserImported: true, ...overrides });
+    const remove = (key = "sounds/1/mine.mp3", userId = owner.id) => DeleteAudioTrackUseCase.getInstance().execute(userId, key);
+
+    it("returns the same singleton instance", () => {
+        expect(DeleteAudioTrackUseCase.getInstance()).toBe(DeleteAudioTrackUseCase.getInstance());
+    });
+
+    it("deletes the file and the row of a sound uploaded by the user", async () => {
+        const track = ownTrack();
+        tracks.findOne.mockResolvedValueOnce(track);
+
+        const result = await remove();
+
+        expect(tracks.findOne).toHaveBeenCalledWith({ where: { storageKey: "sounds/1/mine.mp3" }, relations: { uploadedBy: true } });
+        expect(storageMock.delete).toHaveBeenCalledWith("sounds/1/mine.mp3");
+        expect(tracks.remove).toHaveBeenCalledWith(track);
+        expect(result).toEqual({ key: "sounds/1/mine.mp3", name: track.name, type: track.type, zone: track.zone, ambiance: track.ambiance, isUserImported: true });
+    });
+
+    it("refuses a sound that does not exist", async () => {
+        await expect(remove("sounds/1/ghost.mp3")).rejects.toThrow("Sound does not exist");
+        expect(storageMock.delete).not.toHaveBeenCalled();
+    });
+
+    it("refuses a sound uploaded by someone else", async () => {
+        tracks.findOne.mockResolvedValueOnce(ownTrack({ uploadedBy: makeUser({ id: 2 }) }));
+
+        await expect(remove()).rejects.toThrow("You can only delete your own sounds");
+        expect(storageMock.delete).not.toHaveBeenCalled();
+        expect(tracks.remove).not.toHaveBeenCalled();
+    });
+
+    it("refuses a public sound", async () => {
+        tracks.findOne.mockResolvedValueOnce(ownTrack({ uploadedBy: null, isUserImported: false, storageKey: "sounds/0/public.mp3" }));
+
+        await expect(remove("sounds/0/public.mp3")).rejects.toThrow("You can only delete your own sounds");
+        expect(tracks.remove).not.toHaveBeenCalled();
+    });
+
+    it("keeps the row when the file cannot be deleted from the storage", async () => {
+        tracks.findOne.mockResolvedValueOnce(ownTrack());
+        storageMock.delete.mockRejectedValueOnce(new Error("storage down"));
+
+        await expect(remove()).rejects.toThrow("storage down");
+        expect(tracks.remove).not.toHaveBeenCalled();
     });
 });
