@@ -9,6 +9,7 @@ import {authRoutes} from "./presentation/http/routes/auth.routes.js";
 import {sessionRoutes} from "./presentation/http/routes/session.routes.js";
 import {userRoutes} from "./presentation/http/routes/user.routes.js";
 import {audioRoutes} from "./presentation/http/routes/audio.routes.js";
+import {registerSocket} from "./presentation/websocket/socket.plugin.js";
 
 export interface BuildAppOptions {
     logger?: FastifyServerOptions["logger"];
@@ -22,6 +23,7 @@ export async function buildApp(options: BuildAppOptions = {}) {
 
     await registerJwt(app);
     await registerDocs(app);
+    await registerSocket(app);
 
     await app.register(multipart, {
         attachFieldsToBody: true,
